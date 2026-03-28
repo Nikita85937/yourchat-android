@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Свой чат</string>
+    <string name="title_activity_main">Свой чат</string>
+    <string name="package_name">com.svoychat.app</string>
+    <string name="custom_url_scheme">com.svoychat.app</string>
+</resources>
