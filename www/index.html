@@ -165,7 +165,7 @@
   .btn-cam.off{background:#3a1020;border-color:var(--red);}
   #remoteVideo,#localVideo{border-radius:12px;background:#000;object-fit:cover;}
   #remoteVideo{width:100%;max-width:480px;max-height:300px;display:none;}
-  #localVideo{width:100px;height:70px;position:fixed;bottom:140px;right:16px;display:none;border:2px solid var(--accent);z-index:310;}
+  #localVideo{width:100px;height:70px;position:fixed;bottom:140px;right:16px;display:none;border:2px solid var(--accent);z-index:310;transform:scaleX(-1);}
   .call-timer{font-size:.9rem;color:var(--green);font-variant-numeric:tabular-nums;}
 
   /* Incoming call banner */
@@ -1517,13 +1517,13 @@ async function acceptCall(){
   pendingOffer=null;pendingCallerId=null;
 }
 
-async function declineCall(){
+function declineCall(){
   $('incomingCallBanner').classList.remove('show');
-  publishRaw('signal',await encrypt(JSON.stringify({type:'decline',id:myId,name:myName})));
+  publishRaw('signal',encrypt(JSON.stringify({type:'decline',id:myId,name:myName})));
   pendingOffer=null;pendingCallerId=null;
 }
 
-async function endCall(fromRemote=false){
+function endCall(fromRemote=false){
   if(callEnding)return;
   callEnding=true;
   clearTimeout(disconnectWatchdog);disconnectWatchdog=null;
@@ -1557,7 +1557,7 @@ async function endCall(fromRemote=false){
   stopCallEncryption();
   const e2eBadge=$('callE2e'); if(e2eBadge) e2eBadge.style.opacity='0';
   if(!fromRemote){
-    publishRaw('signal',await encrypt(JSON.stringify({type:'hangup',id:myId,name:myName})));
+    publishRaw('signal',encrypt(JSON.stringify({type:'hangup',id:myId,name:myName})));
   }
   setTimeout(()=>{callEnding=false;},1500);
 }
