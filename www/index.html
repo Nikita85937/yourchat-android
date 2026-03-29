@@ -308,6 +308,7 @@
     <button class="call-ctrl-btn btn-mute" id="muteBtn" onclick="toggleMute()" title="Микрофон">🎤</button>
     <button class="call-ctrl-btn btn-hangup" onclick="endCall()">📵</button>
     <button class="call-ctrl-btn btn-cam" id="camBtn" onclick="toggleCam()" title="Камера">📷</button>
+    <button class="call-ctrl-btn btn-cam" id="flipBtn" onclick="flipCamera()" title="Переключить камеру">🔄</button>
   </div>
 </div>
 <video id="localVideo" autoplay playsinline muted></video>
@@ -1581,6 +1582,46 @@ function toggleCam(){
   localStream.getVideoTracks().forEach(t=>t.enabled=!isCamOff);
   $('camBtn').classList.toggle('off',isCamOff);
   $('camBtn').textContent=isCamOff?'🚫':'📷';
+}
+
+let currentFacingMode='user'; // 'user' = передняя, 'environment' = задняя
+
+async function flipCamera(){
+  if(!localStream||!isVideoCall)return;
+  const btn=$('flipBtn');
+  btn.disabled=true;
+  btn.style.opacity='.5';
+  currentFacingMode=currentFacingMode==='user'?'environment':'user';
+  try{
+    // Останавливаем старый видеотрек
+    localStream.getVideoTracks().forEach(t=>t.stop());
+    // Получаем новый трек с другой камерой
+    const newStream=await navigator.mediaDevices.getUserMedia({
+      video:{facingMode:currentFacingMode},
+      audio:false
+    });
+    const newVideoTrack=newStream.getVideoTracks()[0];
+    // Заменяем трек в localStream
+    const oldTrack=localStream.getVideoTracks()[0];
+    if(oldTrack)localStream.removeTrack(oldTrack);
+    localStream.addTrack(newVideoTrack);
+    // Обновляем превью
+    $('localVideo').srcObject=localStream;
+    // Зеркалим только фронтальную камеру
+    $('localVideo').style.transform=currentFacingMode==='user'?'scaleX(-1)':'scaleX(1)';
+    // Заменяем трек в peerConnection
+    if(peerConn){
+      const sender=peerConn.getSenders().find(s=>s.track&&s.track.kind==='video');
+      if(sender)await sender.replaceTrack(newVideoTrack);
+    }
+    showToast(currentFacingMode==='user'?'Передняя камера':'Задняя камера',1500);
+  }catch(e){
+    showToast('Не удалось переключить камеру');
+    currentFacingMode=currentFacingMode==='user'?'environment':'user'; // откатываем
+  }finally{
+    btn.disabled=false;
+    btn.style.opacity='1';
+  }
 }
 
 function showCallOverlay(name,status,state){
