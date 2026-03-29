@@ -1517,13 +1517,13 @@ async function acceptCall(){
   pendingOffer=null;pendingCallerId=null;
 }
 
-function declineCall(){
+async function declineCall(){
   $('incomingCallBanner').classList.remove('show');
-  publishRaw('signal',encrypt(JSON.stringify({type:'decline',id:myId,name:myName})));
+  publishRaw('signal',await encrypt(JSON.stringify({type:'decline',id:myId,name:myName})));
   pendingOffer=null;pendingCallerId=null;
 }
 
-function endCall(fromRemote=false){
+async function endCall(fromRemote=false){
   if(callEnding)return;
   callEnding=true;
   clearTimeout(disconnectWatchdog);disconnectWatchdog=null;
@@ -1557,7 +1557,7 @@ function endCall(fromRemote=false){
   stopCallEncryption();
   const e2eBadge=$('callE2e'); if(e2eBadge) e2eBadge.style.opacity='0';
   if(!fromRemote){
-    publishRaw('signal',encrypt(JSON.stringify({type:'hangup',id:myId,name:myName})));
+    publishRaw('signal',await encrypt(JSON.stringify({type:'hangup',id:myId,name:myName})));
   }
   setTimeout(()=>{callEnding=false;},1500);
 }
