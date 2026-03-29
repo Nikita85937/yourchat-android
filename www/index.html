@@ -190,6 +190,9 @@
   .spinner{width:36px;height:36px;border:3px solid var(--border);border-top-color:var(--accent);border-radius:50%;animation:spin .8s linear infinite;}
   @keyframes spin{to{transform:rotate(360deg)}}
   #fileInput{display:none;}
+  /* PiP canvas — объединяем два потока */
+  #pipCanvas{display:none;}
+  .pip-active #pipBtn{border-color:var(--accent);color:var(--accent);}
 </style>
 </head>
 <body>
@@ -305,6 +308,7 @@
   <div id="callQualityDetails" style="font-size:.68rem;color:var(--muted);opacity:.7;"></div>
   <div id="callE2e" style="font-size:.68rem;color:#3dd68c;opacity:.0;transition:opacity .5s;">🔒 E2E шифрование</div>
   <div class="call-controls">
+    <button class="call-ctrl-btn btn-pip" id="pipBtn" onclick="togglePiP()" title="Картинка в картинке" style="background:var(--surface2);border:1px solid var(--border);display:none;">⧉</button>
     <button class="call-ctrl-btn btn-mute" id="muteBtn" onclick="toggleMute()" title="Микрофон"><svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="2" width="6" height="12" rx="3"/><path d="M5 10a7 7 0 0 0 14 0"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg></button>
     <button class="call-ctrl-btn btn-hangup" onclick="endCall()">📵</button>
     <button class="call-ctrl-btn btn-cam" id="camBtn" onclick="toggleCam()" title="Камера">📷</button>
@@ -363,6 +367,12 @@ async function releaseWakeLock(){
 }
 // Переполучить WakeLock и восстановить соединения если страница снова видима
 document.addEventListener('visibilitychange',async()=>{
+  if(document.visibilityState==='hidden'){
+    // Уходим в фон — запускаем PiP если идёт видеозвонок
+    if(isVideoCall&&localStream&&peerConn){
+      autoPiP();
+    }
+  }
   if(document.visibilityState==='visible'){
     // Восстановить wake lock
     if(localStream)await requestWakeLock();
@@ -806,7 +816,11 @@ function appendVoiceMsg(data,save=true){
   if(save)saveMessageToHistory(data);
 }
 
+let lastSysMsg='';
 function appendSys(text){
+  // Не показывать одинаковое системное сообщение дважды подряд
+  if(text===lastSysMsg)return;
+  lastSysMsg=text;
   const el=document.createElement('div');el.className='sys-msg';el.textContent=text;
   $('messages').appendChild(el);scrollBottom();
 }
@@ -1252,6 +1266,7 @@ async function startCall(withVideo=false){
     $('localVideo').srcObject=localStream;$('localVideo').style.display='block';
     $('remoteVideo').style.display='block';
   }
+  updatePipBtn();
 
   await requestWakeLock();
   startBackgroundAudio();
@@ -1500,6 +1515,7 @@ async function acceptCall(){
     $('localVideo').srcObject=localStream;$('localVideo').style.display='block';
     $('remoteVideo').style.display='block';
   }
+  updatePipBtn();
 
   await requestWakeLock();
   startBackgroundAudio();
@@ -1539,6 +1555,7 @@ function endCall(fromRemote=false){
     try{peerConn.close();}catch(e){}
     peerConn=null;
   }
+  stopPiP();
   if(localStream){localStream.getTracks().forEach(t=>t.stop());localStream=null;}
   clearInterval(callTimerInt);callTimerInt=null;
   const overlay=$('callOverlay');
@@ -1567,6 +1584,102 @@ function toggleMinimizeCall(){
   const overlay=$('callOverlay');
   const isMin=overlay.classList.toggle('minimized');
   $('callMinimizeBtn').textContent=isMin?'▲ Развернуть':'▼ Свернуть';
+}
+
+// ===== PICTURE-IN-PICTURE =====
+let pipCanvas=null, pipCtx=null, pipAnimFrame=null, pipStream=null;
+
+// Показываем кнопку PiP только при видеозвонке
+function updatePipBtn(){
+  const btn=$('pipBtn');
+  if(!btn)return;
+  btn.style.display=(isVideoCall&&localStream)?'flex':'none';
+}
+
+async function togglePiP(){
+  // Если PiP уже активен — выходим
+  if(document.pictureInPictureElement){
+    await document.exitPictureInPicture().catch(()=>{});
+    return;
+  }
+  await enterPiP();
+}
+
+async function autoPiP(){
+  if(document.pictureInPictureEnabled&&!document.pictureInPictureElement){
+    await enterPiP();
+  }
+}
+
+async function enterPiP(){
+  if(!document.pictureInPictureEnabled)return;
+  try{
+    // Создаём скрытый canvas куда рисуем remote + local видео рядом
+    if(!pipCanvas){
+      pipCanvas=document.createElement('canvas');
+      pipCanvas.id='pipCanvas';
+      pipCanvas.width=640;pipCanvas.height=360;
+      document.body.appendChild(pipCanvas);
+    }
+    pipCtx=pipCanvas.getContext('2d');
+
+    const remoteVid=$('remoteVideo');
+    const localVid=$('localVideo');
+
+    function drawFrame(){
+      pipAnimFrame=requestAnimationFrame(drawFrame);
+      pipCtx.fillStyle='#0d0f14';
+      pipCtx.fillRect(0,0,640,360);
+      // Рисуем remote видео на весь canvas
+      if(remoteVid&&remoteVid.readyState>=2){
+        pipCtx.drawImage(remoteVid,0,0,640,360);
+      }
+      // Рисуем своё видео маленьким окошком справа снизу
+      if(localVid&&localVid.readyState>=2){
+        const lw=160,lh=100;
+        pipCtx.save();
+        // Зеркалим своё видео
+        pipCtx.translate(640-10,360-10-lh);
+        pipCtx.scale(-1,1);
+        pipCtx.drawImage(localVid,-lw,0,lw,lh);
+        pipCtx.restore();
+        // Рамка вокруг своего окошка
+        pipCtx.strokeStyle='#4f8ef7';
+        pipCtx.lineWidth=2;
+        pipCtx.strokeRect(640-10-lw,360-10-lh,lw,lh);
+      }
+    }
+    if(pipAnimFrame)cancelAnimationFrame(pipAnimFrame);
+    drawFrame();
+
+    // Захватываем поток с canvas
+    pipStream=pipCanvas.captureStream(30);
+    const pipVideo=document.createElement('video');
+    pipVideo.srcObject=pipStream;
+    pipVideo.muted=true;
+    await pipVideo.play();
+    await pipVideo.requestPictureInPicture();
+
+    pipVideo.addEventListener('leavepictureinpicture',()=>{
+      if(pipAnimFrame){cancelAnimationFrame(pipAnimFrame);pipAnimFrame=null;}
+    });
+
+    $('callOverlay').classList.add('pip-active');
+  }catch(e){
+    console.warn('PiP error:',e);
+    // Fallback: просто пробуем remoteVideo напрямую
+    try{
+      await $('remoteVideo').requestPictureInPicture();
+    }catch(e2){}
+  }
+}
+
+function stopPiP(){
+  if(pipAnimFrame){cancelAnimationFrame(pipAnimFrame);pipAnimFrame=null;}
+  if(document.pictureInPictureElement){
+    document.exitPictureInPicture().catch(()=>{});
+  }
+  $('callOverlay').classList.remove('pip-active');
 }
 
 function toggleMute(){
@@ -1738,12 +1851,13 @@ function onConnected(){
   client.subscribe(getTopic('file'));
   client.subscribe(getTopic('voice'));
   client.subscribe(getTopic('signal'));
-  publishPresence('join');
+  publishPresence(isReconnecting ? 'here' : 'join');
   // Ping каждые 20 сек — и обновляет активность
   clearInterval(pingInterval);
   pingInterval=setInterval(async()=>{
     if(!client||!client.isConnected()){scheduleReconnect();return;}
     publishPresence('ping_tick');
+    lastMqttActivity=Date.now(); // сам факт отправки ping — признак живого соединения
   },20000);
   // Watchdog: если 90 сек нет активности — форсируем reconnect
   // (90 сек вместо 45 — чтобы не рвать соединение при фоновом режиме телефона)
@@ -1751,7 +1865,7 @@ function onConnected(){
   watchdogInterval=setInterval(()=>{
     if(!client||!client.isConnected()){return;}
     const idle=Date.now()-lastMqttActivity;
-    if(idle>90000){
+    if(idle>120000){
       appendSys('⚠ Нет активности. Переподключение...');
       $('statusDot').className='offline';
       clearInterval(pingInterval);clearInterval(watchdogInterval);
@@ -1762,6 +1876,7 @@ function onConnected(){
   if(isReconnecting){
     appendSys('✓ Переподключено.');
     isReconnecting=false;
+    flushOutbox(); // отправляем отложенное сообщение если было
   }else{
     appendSys(`✓ Подключено. Комната: ${myRoom} 🔒`);
     // Историю грузим только один раз при первом входе
@@ -1797,7 +1912,7 @@ async function onMessage(rawMsg){
   if(!decrypted)return;
   let data;try{data=JSON.parse(decrypted);}catch(e){return;}
 
-  if(topic===getTopic('msg')&&data.id!==myId){appendMessage(data);}
+  if(topic===getTopic('msg')&&data.id!==myId&&data.text){appendMessage(data);}
 
   if(topic===getTopic('file')&&data.id!==myId){
     if(data.type==='file_meta')handleIncomingFileMeta(data);
@@ -2009,14 +2124,33 @@ function leaveChat(){
   renderSavedRooms();
 }
 
+let pendingOutboxMsg=null;
+
 async function sendMessage(){
   const input=$('msgInput');const text=input.value.trim();
   if(!text)return;
-  if(!client||!client.isConnected()){showToast('Нет соединения...');return;}
+  if(!client||!client.isConnected()){
+    showToast('Нет соединения, повторное подключение...');
+    scheduleReconnect();
+    // Сохраняем сообщение и отправим после reconnect
+    pendingOutboxMsg={text,ts:Date.now()};
+    return;
+  }
   const data={id:myId,name:myName,color:myColor,text,ts:Date.now()};
   publishRaw('msg',await encrypt(JSON.stringify(data)));
   appendMessage(data);
   input.value='';input.style.height='auto';input.focus();
+}
+
+async function flushOutbox(){
+  if(!pendingOutboxMsg)return;
+  const{text,ts}=pendingOutboxMsg;
+  pendingOutboxMsg=null;
+  const data={id:myId,name:myName,color:myColor,text,ts};
+  publishRaw('msg',await encrypt(JSON.stringify(data)));
+  appendMessage(data);
+  $('msgInput').value='';$('msgInput').style.height='auto';
+  showToast('Сообщение отправлено ✓',1500);
 }
 
 function handleKey(e){if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();sendMessage();}}
