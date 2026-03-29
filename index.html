@@ -305,7 +305,7 @@
   <div id="callQualityDetails" style="font-size:.68rem;color:var(--muted);opacity:.7;"></div>
   <div id="callE2e" style="font-size:.68rem;color:#3dd68c;opacity:.0;transition:opacity .5s;">🔒 E2E шифрование</div>
   <div class="call-controls">
-    <button class="call-ctrl-btn btn-mute" id="muteBtn" onclick="toggleMute()" title="Микрофон">🎤</button>
+    <button class="call-ctrl-btn btn-mute" id="muteBtn" onclick="toggleMute()" title="Микрофон"><svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="2" width="6" height="12" rx="3"/><path d="M5 10a7 7 0 0 0 14 0"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg></button>
     <button class="call-ctrl-btn btn-hangup" onclick="endCall()">📵</button>
     <button class="call-ctrl-btn btn-cam" id="camBtn" onclick="toggleCam()" title="Камера">📷</button>
     <button class="call-ctrl-btn btn-cam" id="flipBtn" onclick="flipCamera()" title="Переключить камеру">🔄</button>
@@ -835,13 +835,13 @@ function updateActionBtn(){
   const btn=$('mainActionBtn');
   const hasText=$('msgInput').value.trim().length>0;
   if(hasText){
-    btn.textContent='➤';
+    btn.innerHTML='➤';
     btn.style.background='linear-gradient(135deg,var(--accent),var(--accent2))';
     btn.onclick=sendMessage;
     btn.onmousedown=null;btn.ontouchstart=null;
     btn.onmouseup=null;btn.ontouchend=null;
   }else{
-    btn.textContent='🎙';
+    btn.innerHTML='<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="2" width="6" height="12" rx="3"/><path d="M5 10a7 7 0 0 0 14 0"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg>';
     btn.style.background='linear-gradient(135deg,var(--accent),var(--accent2))';
     btn.onmousedown=null;btn.onmouseup=null;
     btn.ontouchstart=null;btn.ontouchmove=null;btn.ontouchend=null;
@@ -1551,7 +1551,7 @@ function endCall(fromRemote=false){
   const qd=$('callQualityDetails');if(qd)qd.textContent='';
   updateQualityIndicator('checking');
   isMuted=false;isCamOff=false;
-  $('muteBtn').textContent='🎤';$('muteBtn').classList.remove('muted');
+  $('muteBtn').innerHTML='<svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="2" width="6" height="12" rx="3"/><path d="M5 10a7 7 0 0 0 14 0"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg>';$('muteBtn').classList.remove('muted');
   $('camBtn').textContent='📷';$('camBtn').classList.remove('off');
   releaseWakeLock();
   stopBackgroundAudio();
@@ -1573,7 +1573,7 @@ function toggleMute(){
   if(!localStream)return;
   isMuted=!isMuted;
   localStream.getAudioTracks().forEach(t=>t.enabled=!isMuted);
-  $('muteBtn').textContent=isMuted?'🔇':'🎤';
+  $('muteBtn').innerHTML=isMuted?'<svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="2" width="6" height="12" rx="3"/><path d="M5 10a7 7 0 0 0 14 0"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/><line x1="3" y1="3" x2="21" y2="21" stroke="#f7645a"/></svg>':'<svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="2" width="6" height="12" rx="3"/><path d="M5 10a7 7 0 0 0 14 0"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg>';
   $('muteBtn').classList.toggle('muted',isMuted);
 }
 function toggleCam(){
@@ -1642,9 +1642,20 @@ function startCallTimer(){
   startQualityMonitor();
 }
 
+// Очередь ICE-кандидатов — копятся пока peerConn не готов принять их
+let pendingIceCandidates=[];
+async function flushPendingIce(){
+  if(!peerConn||!peerConn.remoteDescription)return;
+  while(pendingIceCandidates.length>0){
+    const c=pendingIceCandidates.shift();
+    try{await peerConn.addIceCandidate(new RTCIceCandidate(c));}catch(e){}
+  }
+}
+
 async function handleSignal(data){
   if(data.id===myId)return;
   if(data.type==='offer'||data.type==='offer_restart'){
+    pendingIceCandidates=[];
     // offer_restart — удалённый конец переустанавливает соединение
     if(data.type==='offer_restart'&&peerConn&&localStream){
       // Принимаем перезапуск без показа баннера если звонок уже идёт
@@ -1653,6 +1664,7 @@ async function handleSignal(data){
       const answer=await peerConn.createAnswer();
       await peerConn.setLocalDescription(answer);
       publishRaw('signal',await encrypt(JSON.stringify({type:'answer',id:myId,name:myName,answer:peerConn.localDescription})));
+      await flushPendingIce();
       return;
     }
     pendingOffer=data;pendingCallerId=data.id;pendingCallerName=data.name||'Собеседник';
@@ -1663,9 +1675,15 @@ async function handleSignal(data){
   }else if(data.type==='answer'&&peerConn){
     await peerConn.setRemoteDescription(new RTCSessionDescription(data.answer));
     showCallOverlay(data.name,'Соединяемся...','connecting');
-  }else if(data.type==='ice'&&peerConn){
-    try{await peerConn.addIceCandidate(new RTCIceCandidate(data.candidate));}catch(e){}
+    await flushPendingIce();
+  }else if(data.type==='ice'){
+    if(peerConn&&peerConn.remoteDescription){
+      try{await peerConn.addIceCandidate(new RTCIceCandidate(data.candidate));}catch(e){}
+    }else{
+      pendingIceCandidates.push(data.candidate);
+    }
   }else if(data.type==='hangup'||data.type==='decline'){
+    pendingIceCandidates=[];
     endCall(true);
     appendSys(`📵 ${data.name||'Собеседник'} ${data.type==='hangup'?'завершил звонок':'отклонил звонок'}`);
   }
