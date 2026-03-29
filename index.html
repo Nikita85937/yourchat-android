@@ -1,0 +1,1991 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>Свой чат</title>
+<!-- PWA + iOS: не дать браузеру выгружать страницу при сворачивании -->
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Свой чат">
+<meta name="theme-color" content="#0d0f14">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/paho-mqtt/1.1.0/paho-mqtt.min.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
+<link rel="icon" type="image/png" href="favicon.png">
+<style>
+  :root {
+    --bg:#0d0f14;--surface:#161a22;--surface2:#1e2430;--border:#2a3040;
+    --accent:#4f8ef7;--accent2:#7c5ef7;--green:#3dd68c;--red:#f7645a;
+    --text:#e8ecf4;--muted:#6b7894;--font:'Courier New',monospace;
+  }
+  *{box-sizing:border-box;margin:0;padding:0;}
+  body{background:var(--bg);color:var(--text);font-family:var(--font);height:100dvh;display:flex;flex-direction:column;overflow:hidden;}
+
+  /* AUTH */
+  #authScreen{display:flex;flex-direction:column;align-items:center;justify-content:center;height:100dvh;gap:18px;padding:24px;background:radial-gradient(ellipse at 50% 40%,#1a2040 0%,var(--bg) 70%);}
+  .auth-tabs{display:flex;background:var(--surface2);border-radius:12px;padding:3px;gap:3px;width:100%;max-width:360px;}
+  .auth-tab{flex:1;padding:9px;border:none;border-radius:9px;background:none;color:var(--muted);font-family:var(--font);font-size:.85rem;cursor:pointer;transition:all .2s;}
+  .auth-tab.active{background:var(--surface);color:var(--text);box-shadow:0 1px 4px rgba(0,0,0,.4);}
+  .auth-avatar-row{display:flex;gap:8px;flex-wrap:wrap;justify-content:center;}
+  .av-opt{width:36px;height:36px;border-radius:50%;border:2px solid transparent;cursor:pointer;font-size:1.1rem;display:flex;align-items:center;justify-content:center;transition:border-color .2s;background:var(--surface2);}
+  .av-opt.selected{border-color:var(--accent);}
+  .profile-preview{display:flex;align-items:center;gap:10px;background:var(--surface2);border-radius:10px;padding:10px 14px;}
+  .preview-av{width:38px;height:38px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:1.1rem;font-weight:bold;flex-shrink:0;}
+  .preview-name{font-size:.9rem;font-weight:bold;}
+  .preview-tag{font-size:.7rem;color:var(--muted);}
+  .divider{display:flex;align-items:center;gap:10px;width:100%;max-width:360px;}
+  .divider-line{flex:1;height:1px;background:var(--border);}
+  .divider-text{font-size:.7rem;color:var(--muted);}
+
+  /* LOGIN */
+  #loginScreen{display:flex;flex-direction:column;align-items:center;justify-content:center;height:100dvh;gap:20px;padding:24px;background:radial-gradient(ellipse at 50% 40%,#1a2040 0%,var(--bg) 70%);}
+  .logo{font-size:2.2rem;font-weight:bold;letter-spacing:-1px;background:linear-gradient(135deg,var(--accent),var(--accent2));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;}
+  .subtitle{color:var(--muted);font-size:0.8rem;text-align:center;max-width:280px;line-height:1.6;}
+  .card{background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:28px 24px;width:100%;max-width:360px;display:flex;flex-direction:column;gap:14px;}
+  label{font-size:0.72rem;color:var(--muted);letter-spacing:0.08em;text-transform:uppercase;margin-bottom:4px;display:block;}
+  input{width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:12px 14px;color:var(--text);font-family:var(--font);font-size:0.95rem;outline:none;transition:border-color .2s;}
+  input:focus{border-color:var(--accent);}input::placeholder{color:var(--muted);}
+  .btn{background:linear-gradient(135deg,var(--accent),var(--accent2));border:none;border-radius:10px;padding:13px;color:#fff;font-family:var(--font);font-size:0.95rem;font-weight:bold;cursor:pointer;width:100%;letter-spacing:.05em;transition:opacity .2s,transform .1s;}
+  .btn:hover{opacity:.9;}.btn:active{transform:scale(.98);}.btn:disabled{opacity:.4;cursor:default;}
+  .hint{font-size:.72rem;color:var(--muted);text-align:center;line-height:1.5;}
+  .hint b{color:var(--accent);font-weight:normal;}
+  .saved-rooms{display:flex;flex-direction:column;gap:8px;width:100%;max-width:360px;}
+  .saved-label{font-size:.7rem;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;}
+  .saved-room-btn{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:10px 14px;color:var(--text);font-family:var(--font);font-size:.85rem;cursor:pointer;text-align:left;transition:border-color .2s;display:flex;justify-content:space-between;align-items:center;}
+  .saved-room-btn:hover{border-color:var(--accent);}
+  .saved-room-del{color:var(--muted);font-size:.75rem;padding:2px 6px;background:none;border:none;cursor:pointer;color:var(--red);opacity:.6;}
+  .saved-room-del:hover{opacity:1;}
+
+  /* CHAT */
+  #chatScreen{display:none;flex-direction:column;height:100dvh;}
+  #header{background:var(--surface);border-bottom:1px solid var(--border);padding:12px 16px;display:flex;align-items:center;justify-content:space-between;flex-shrink:0;}
+  .header-left{display:flex;align-items:center;gap:10px;}
+  .room-name{font-size:.95rem;font-weight:bold;color:var(--text);}
+  .room-badge{font-size:.68rem;color:var(--muted);background:var(--surface2);border:1px solid var(--border);border-radius:6px;padding:2px 8px;letter-spacing:.05em;}
+  #statusDot{width:8px;height:8px;border-radius:50%;background:var(--muted);flex-shrink:0;transition:background .3s;}
+  #statusDot.online{background:var(--green);box-shadow:0 0 6px var(--green);}
+  #statusDot.offline{background:var(--red);}
+  .header-right{display:flex;align-items:center;gap:8px;}
+  #onlineCount{font-size:.75rem;color:var(--green);}
+  #leaveBtn{background:none;border:1px solid var(--border);border-radius:8px;color:var(--muted);font-family:var(--font);font-size:.75rem;padding:5px 10px;cursor:pointer;transition:color .2s,border-color .2s;}
+  #leaveBtn:hover{color:var(--red);border-color:var(--red);}
+  .call-btn{background:none;border:1px solid var(--border);border-radius:8px;color:var(--muted);font-family:var(--font);font-size:.85rem;padding:5px 9px;cursor:pointer;transition:all .2s;}
+  .call-btn:hover{border-color:var(--green);color:var(--green);}
+  .call-btn.active{background:#1a3a20;border-color:var(--green);color:var(--green);}
+  .call-btn.video{font-size:.85rem;}
+  #membersBar{background:var(--surface2);border-bottom:1px solid var(--border);padding:6px 16px;font-size:.7rem;color:var(--muted);display:flex;gap:8px;flex-wrap:wrap;align-items:center;flex-shrink:0;min-height:30px;}
+  .member-tag{background:var(--surface);border:1px solid var(--border);border-radius:20px;padding:2px 10px;color:var(--accent);font-size:.68rem;}
+
+  /* MESSAGES */
+  #messages{flex:1;overflow-y:auto;padding:16px 12px;display:flex;flex-direction:column;gap:6px;scroll-behavior:smooth;}
+  #messages::-webkit-scrollbar{width:4px;}
+  #messages::-webkit-scrollbar-thumb{background:var(--border);border-radius:4px;}
+  .msg{display:flex;gap:10px;align-items:flex-end;max-width:100%;animation:fadeIn .2s ease;}
+  @keyframes fadeIn{from{opacity:0;transform:translateY(6px)}to{opacity:1}}
+  .msg.mine{flex-direction:row-reverse;}
+  .msg-bubble{background:var(--surface);border:1px solid var(--border);border-radius:14px 14px 14px 4px;padding:9px 13px;max-width:78%;word-break:break-word;line-height:1.5;font-size:.88rem;}
+  .msg.mine .msg-bubble{background:#1e3060;border-color:#2a4080;border-radius:14px 14px 4px 14px;}
+  .msg-name{font-size:.68rem;margin-bottom:3px;font-weight:bold;}
+  .msg.mine .msg-name{display:none;}
+  .msg-time{font-size:.62rem;color:var(--muted);margin-top:4px;text-align:right;}
+  .msg-avatar{width:30px;height:30px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:.8rem;font-weight:bold;flex-shrink:0;margin-bottom:2px;}
+  .sys-msg{text-align:center;font-size:.7rem;color:var(--muted);padding:4px 0;font-style:italic;}
+
+  .msg-img{max-width:220px;max-height:220px;border-radius:10px;display:block;cursor:zoom-in;margin-bottom:4px;border:1px solid var(--border);}
+  .msg-img:hover{opacity:.85;}
+  .msg-file{display:flex;align-items:center;gap:10px;background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:10px 12px;margin-bottom:4px;cursor:pointer;transition:border-color .2s;}
+  .msg-file:hover{border-color:var(--accent);}
+  .msg-file-icon{font-size:1.5rem;flex-shrink:0;}
+  .msg-file-name{font-size:.8rem;color:var(--text);word-break:break-all;}
+  .msg-file-meta{font-size:.68rem;color:var(--muted);margin-top:2px;}
+
+  /* VOICE MESSAGE */
+  .msg-voice{display:flex;align-items:center;gap:10px;background:var(--surface2);border:1px solid var(--border);border-radius:24px;padding:8px 14px;margin-bottom:4px;min-width:180px;}
+  .voice-play-btn{width:32px;height:32px;border-radius:50%;background:linear-gradient(135deg,var(--accent),var(--accent2));border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:.9rem;flex-shrink:0;transition:opacity .2s;}
+  .voice-play-btn:hover{opacity:.85;}
+  .voice-wave{flex:1;height:28px;display:flex;align-items:center;gap:2px;}
+  .voice-bar{background:var(--border);border-radius:2px;width:3px;transition:background .3s;}
+  .voice-bar.active{background:var(--accent);}
+  .voice-duration{font-size:.68rem;color:var(--muted);white-space:nowrap;}
+
+  /* Progress */
+  .upload-msg{background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:10px 12px;font-size:.78rem;color:var(--muted);}
+  .prog-wrap{width:100%;height:4px;background:var(--border);border-radius:4px;margin-top:6px;overflow:hidden;}
+  .prog-bar{height:100%;background:var(--accent);border-radius:4px;transition:width .15s;}
+
+  /* INPUT */
+  #inputArea{background:var(--surface);border-top:1px solid var(--border);padding:10px 12px;display:flex;gap:8px;align-items:flex-end;flex-shrink:0;position:relative;}
+  #msgInput{flex:1;background:var(--surface2);border:1px solid var(--border);border-radius:12px;padding:11px 14px;color:var(--text);font-family:var(--font);font-size:.9rem;outline:none;resize:none;max-height:120px;line-height:1.4;transition:border-color .2s;}
+  #msgInput:focus{border-color:var(--accent);}
+  #msgInput::placeholder{color:var(--muted);}
+  .icon-btn{background:var(--surface2);border:1px solid var(--border);border-radius:12px;width:44px;height:44px;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:1.15rem;flex-shrink:0;transition:all .2s;color:var(--muted);}
+  .icon-btn:hover{border-color:var(--accent);color:var(--accent);}
+
+  /* Кнопка отправки/микрофона — как в Телеграме */
+  #mainActionBtn{background:linear-gradient(135deg,var(--accent),var(--accent2));border:none;border-radius:50%;width:44px;height:44px;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:1.1rem;flex-shrink:0;transition:transform .15s,background .2s;-webkit-user-select:none;user-select:none;touch-action:none;}
+  #mainActionBtn:active{transform:scale(.92);}
+  #mainActionBtn.recording{background:var(--red);transform:scale(1.15);}
+
+  /* Панель записи голоса */
+  #voiceRecordBar{display:none;position:absolute;left:0;right:0;bottom:0;height:68px;background:var(--surface);border-top:1px solid var(--border);padding:0 12px;align-items:center;gap:10px;z-index:10;}
+  #voiceRecordBar.show{display:flex;}
+  #voiceTimer{font-size:.95rem;color:var(--red);font-variant-numeric:tabular-nums;min-width:44px;font-weight:bold;flex-shrink:0;}
+  #voiceWavePreview{flex:1;height:36px;display:flex;align-items:center;gap:2px;overflow:hidden;}
+  .vwb{background:var(--accent);border-radius:2px;width:3px;flex-shrink:0;transition:height .1s;}
+  #voiceCancelBtn{background:none;border:1px solid var(--border);border-radius:50%;width:36px;height:36px;color:var(--muted);font-family:var(--font);font-size:1rem;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;transition:all .2s;}
+  #voiceCancelBtn:hover{border-color:var(--red);color:var(--red);}
+  #voiceSendBtn{background:linear-gradient(135deg,var(--accent),var(--accent2));border:none;border-radius:10px;padding:8px 14px;color:#fff;font-family:var(--font);font-size:.82rem;font-weight:bold;cursor:pointer;white-space:nowrap;flex-shrink:0;transition:opacity .2s;}
+  #voiceSendBtn:hover{opacity:.85;}
+
+  /* CALL OVERLAY */
+  #callOverlay{display:none;position:fixed;inset:0;background:rgba(10,12,18,.97);z-index:300;flex-direction:column;align-items:center;justify-content:center;gap:20px;}
+  #callOverlay.show{display:flex;}
+  #callOverlay.minimized{inset:auto;bottom:0;left:0;right:0;height:72px;flex-direction:row;justify-content:space-between;padding:0 20px;gap:16px;background:var(--surface);border-top:2px solid var(--green);border-radius:0;}
+  #callOverlay.minimized .call-avatar,#callOverlay.minimized .call-status,#callOverlay.minimized #remoteVideo,#callOverlay.minimized #callTimer{display:none!important;}
+  #callOverlay.minimized .call-name{font-size:.85rem;}
+  #callOverlay.minimized .call-controls{margin:0;gap:10px;}
+  #callOverlay.minimized .call-ctrl-btn{width:42px;height:42px;font-size:1.1rem;}
+  #callMinimizeBtn{background:none;border:1px solid var(--border);border-radius:8px;color:var(--muted);font-family:var(--font);font-size:.72rem;padding:5px 10px;cursor:pointer;position:absolute;top:14px;right:14px;transition:all .2s;}
+  #callMinimizeBtn:hover{border-color:var(--accent);color:var(--accent);}
+  #callOverlay.minimized #callMinimizeBtn{position:static;font-size:.7rem;padding:4px 8px;}
+  .call-avatar{width:90px;height:90px;border-radius:50%;background:linear-gradient(135deg,var(--accent),var(--accent2));display:flex;align-items:center;justify-content:center;font-size:2.5rem;font-weight:bold;margin-bottom:8px;}
+  .call-name{font-size:1.3rem;font-weight:bold;color:var(--text);}
+  .call-status{font-size:.85rem;color:var(--muted);}
+  .call-controls{display:flex;gap:16px;margin-top:12px;}
+  .call-ctrl-btn{width:56px;height:56px;border-radius:50%;border:none;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:1.4rem;transition:opacity .2s,transform .1s;}
+  .call-ctrl-btn:hover{opacity:.85;}.call-ctrl-btn:active{transform:scale(.93);}
+  .btn-hangup{background:var(--red);}
+  .btn-answer{background:var(--green);}
+  .btn-mute{background:var(--surface2);border:1px solid var(--border);}
+  .btn-mute.muted{background:#3a1020;border-color:var(--red);}
+  .btn-cam{background:var(--surface2);border:1px solid var(--border);}
+  .btn-cam.off{background:#3a1020;border-color:var(--red);}
+  #remoteVideo,#localVideo{border-radius:12px;background:#000;object-fit:cover;}
+  #remoteVideo{width:100%;max-width:480px;max-height:300px;display:none;}
+  #localVideo{width:100px;height:70px;position:fixed;bottom:140px;right:16px;display:none;border:2px solid var(--accent);z-index:310;}
+  .call-timer{font-size:.9rem;color:var(--green);font-variant-numeric:tabular-nums;}
+
+  /* Incoming call banner */
+  #incomingCallBanner{display:none;position:fixed;top:16px;left:50%;transform:translateX(-50%);background:var(--surface);border:1px solid var(--accent);border-radius:14px;padding:14px 20px;z-index:400;min-width:280px;flex-direction:column;gap:10px;box-shadow:0 8px 32px rgba(0,0,0,.6);}
+  #incomingCallBanner.show{display:flex;}
+  .ic-title{font-size:.75rem;color:var(--accent);text-transform:uppercase;letter-spacing:.08em;}
+  .ic-name{font-size:1rem;font-weight:bold;color:var(--text);}
+  .ic-btns{display:flex;gap:10px;}
+  .ic-btn{flex:1;padding:9px;border:none;border-radius:10px;font-family:var(--font);font-size:.88rem;cursor:pointer;font-weight:bold;}
+  .ic-accept{background:var(--green);color:#fff;}
+  .ic-decline{background:var(--red);color:#fff;}
+
+  /* Lightbox */
+  #lightbox{display:none;position:fixed;inset:0;background:rgba(0,0,0,.92);align-items:center;justify-content:center;z-index:200;cursor:zoom-out;}
+  #lightbox.show{display:flex;}
+  #lightboxImg{max-width:95vw;max-height:92vh;border-radius:8px;}
+
+  #toast{position:fixed;bottom:80px;left:50%;transform:translateX(-50%) translateY(20px);background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:10px 18px;font-size:.8rem;color:var(--text);opacity:0;transition:all .3s;pointer-events:none;white-space:nowrap;z-index:100;}
+  #toast.show{opacity:1;transform:translateX(-50%) translateY(0);}
+  #connectingOverlay{display:none;position:fixed;inset:0;background:rgba(13,15,20,.85);align-items:center;justify-content:center;flex-direction:column;gap:16px;z-index:50;font-size:.85rem;color:var(--muted);}
+  #connectingOverlay.show{display:flex;}
+  .spinner{width:36px;height:36px;border:3px solid var(--border);border-top-color:var(--accent);border-radius:50%;animation:spin .8s linear infinite;}
+  @keyframes spin{to{transform:rotate(360deg)}}
+  #fileInput{display:none;}
+</style>
+</head>
+<body>
+
+<!-- AUTH SCREEN -->
+<div id="authScreen">
+  <div class="logo">◈ Свой чат</div>
+  <div class="auth-tabs">
+    <button class="auth-tab active" id="tabReg" onclick="switchAuthTab('reg')">Регистрация</button>
+    <button class="auth-tab" id="tabLogin" onclick="switchAuthTab('login')">Войти</button>
+  </div>
+
+  <!-- REGISTER -->
+  <div class="card" id="regCard">
+    <div><label>Имя</label><input id="regName" type="text" placeholder="Как тебя зовут..." maxlength="20" autocomplete="off" oninput="updatePreview()"></div>
+    <div>
+      <label>Аватар</label>
+      <div class="auth-avatar-row" id="avatarRow"></div>
+    </div>
+    <div>
+      <label>Предпросмотр</label>
+      <div class="profile-preview">
+        <div class="preview-av" id="previewAv">?</div>
+        <div><div class="preview-name" id="previewName">Твоё имя</div><div class="preview-tag">участник чата</div></div>
+      </div>
+    </div>
+    <div><label>Email</label><input id="regEmail" type="email" placeholder="твой@email.com" maxlength="100" autocomplete="email"></div>
+    <div><label>Пароль аккаунта</label><input id="regPass" type="password" placeholder="Минимум 6 символов..." maxlength="100"></div>
+    <div><label>Повтори пароль</label><input id="regPass2" type="password" placeholder="Ещё раз..." maxlength="100"></div>
+    <button class="btn" onclick="doRegister()">Создать аккаунт →</button>
+  </div>
+
+  <!-- LOGIN -->
+  <div class="card" id="loginCard" style="display:none;">
+    <div id="savedProfilePreview" style="display:none;">
+      <label>Аккаунт</label>
+      <div class="profile-preview" style="margin-bottom:4px;">
+        <div class="preview-av" id="loginPreviewAv">?</div>
+        <div><div class="preview-name" id="loginPreviewName">—</div><div class="preview-tag">сохранённый аккаунт</div></div>
+      </div>
+    </div>
+    <div><label>Email</label><input id="loginEmail" type="email" placeholder="твой@email.com" maxlength="100" autocomplete="email"></div>
+    <div><label>Пароль</label><input id="loginPass" type="password" placeholder="Введи пароль..." maxlength="100" onkeydown="if(event.key==='Enter')doLogin()"></div>
+    <button class="btn" onclick="doLogin()">Войти →</button>
+    <button style="background:none;border:none;color:var(--muted);font-size:.75rem;cursor:pointer;text-align:center;font-family:var(--font);" onclick="doLogout()">Сменить аккаунт</button>
+  </div>
+</div>
+
+<div id="loginScreen">
+  <div class="logo">◈ Свой чат</div>
+  <div id="loginProfileBar" style="display:flex;align-items:center;gap:10px;background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:10px 16px;width:100%;max-width:360px;">
+    <div id="loginBarAv" style="width:34px;height:34px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:1rem;flex-shrink:0;"></div>
+    <div style="flex:1"><div id="loginBarName" style="font-size:.9rem;font-weight:bold;"></div><div style="font-size:.68rem;color:var(--muted);">твой аккаунт</div></div>
+    <button onclick="goBackToAuth()" style="background:none;border:none;color:var(--muted);font-size:.75rem;cursor:pointer;font-family:var(--font);">сменить</button>
+  </div>
+  <div class="subtitle">Войди в аккаунт и выбери комнату.</div>
+  <div class="card">
+    <div><label>Твоё имя</label><input id="nameInput" type="text" placeholder="Введи имя..." maxlength="20" autocomplete="off"></div>
+    <div><label>Название комнаты</label><input id="roomInput" type="text" placeholder="Например: друзья2025" maxlength="40" autocomplete="off"></div>
+    <div><label>Пароль комнаты</label><input id="passInput" type="password" placeholder="Общий пароль для всех..." maxlength="100"></div>
+    <button class="btn" id="joinBtn" onclick="joinChat()">Войти в чат →</button>
+  </div>
+  <div id="savedRoomsSection" class="saved-rooms" style="display:none;">
+    <div class="saved-label">Недавние комнаты</div>
+    <div id="savedRoomsList"></div>
+  </div>
+  <div class="hint">Делись мессенджером и приглашай друзей. Введите одинаковые <b>комнату</b> и <b>пароль</b>.<br>🔒 Сообщения зашифрованы. Голосовые + Звонки.</div>
+</div>
+
+<div id="chatScreen">
+  <div id="header">
+    <div class="header-left">
+      <div id="statusDot"></div>
+      <div class="room-name" id="headerRoom"></div>
+      <span class="room-badge">КОМНАТА</span>
+    </div>
+    <div class="header-right">
+      <span id="onlineCount"></span>
+      <button class="call-btn" id="voiceCallBtn" onclick="startCall(false)" title="Голосовой звонок">📞</button>
+      <button class="call-btn video" id="videoCallBtn" onclick="startCall(true)" title="Видеозвонок">📹</button>
+      <button id="leaveBtn" onclick="leaveChat()">Выйти</button>
+    </div>
+  </div>
+  <div id="membersBar"><span style="color:var(--muted);font-size:.68rem;">Онлайн:</span></div>
+  <div id="messages"></div>
+  <div id="inputArea">
+    <button class="icon-btn" onclick="document.getElementById('fileInput').click()" title="Прикрепить файл или фото">📎</button>
+    <input type="file" id="fileInput" accept="*/*" onchange="handleFileSelect(event)">
+    <textarea id="msgInput" placeholder="Написать сообщение..." rows="1" onkeydown="handleKey(event)" oninput="onInputChange(this)"></textarea>
+    <button id="mainActionBtn" id="mainActionBtn" title="Отправить / Голосовое">➤</button>
+    <!-- Панель записи голоса -->
+    <div id="voiceRecordBar">
+      <button id="voiceCancelBtn" onclick="cancelVoiceRecord()">✕</button>
+      <span id="voiceTimer">0:00</span>
+      <div id="voiceWavePreview"></div>
+      <button id="voiceSendBtn" onclick="stopVoiceRecord()">➤ Отправить</button>
+    </div>
+  </div>
+</div>
+
+<!-- Call overlay -->
+<div id="callOverlay">
+  <button id="callMinimizeBtn" onclick="toggleMinimizeCall()">▼ Свернуть</button>
+  <video id="remoteVideo" autoplay playsinline></video>
+  <!-- Отдельный audio элемент для минимальной задержки звука -->
+  <audio id="remoteAudio" autoplay playsinline style="display:none"></audio>
+  <div class="call-avatar" id="callAvatar">?</div>
+  <div class="call-name" id="callName">—</div>
+  <div class="call-status" id="callStatus">Соединение...</div>
+  <div style="font-size:.68rem;color:var(--green);opacity:.7;letter-spacing:.04em;" id="callEncBadge"></div>
+  <div class="call-timer" id="callTimer"></div>
+  <div id="callQuality" style="font-size:.72rem;color:var(--muted);"></div>
+  <div id="callQualityDetails" style="font-size:.68rem;color:var(--muted);opacity:.7;"></div>
+  <div id="callE2e" style="font-size:.68rem;color:#3dd68c;opacity:.0;transition:opacity .5s;">🔒 E2E шифрование</div>
+  <div class="call-controls">
+    <button class="call-ctrl-btn btn-mute" id="muteBtn" onclick="toggleMute()" title="Микрофон">🎤</button>
+    <button class="call-ctrl-btn btn-hangup" onclick="endCall()">📵</button>
+    <button class="call-ctrl-btn btn-cam" id="camBtn" onclick="toggleCam()" title="Камера">📷</button>
+  </div>
+</div>
+<video id="localVideo" autoplay playsinline muted></video>
+
+<!-- Incoming call banner -->
+<div id="incomingCallBanner">
+  <div class="ic-title">Входящий звонок</div>
+  <div class="ic-name" id="incomingCallerName">—</div>
+  <div class="ic-btns">
+    <button class="ic-btn ic-accept" onclick="acceptCall()">✓ Принять</button>
+    <button class="ic-btn ic-decline" onclick="declineCall()">✕ Отклонить</button>
+  </div>
+</div>
+
+<div id="lightbox" onclick="closeLightbox()"><img id="lightboxImg" src="" alt=""></div>
+<div id="connectingOverlay"><div class="spinner"></div><span>Подключение...</span></div>
+<div id="toast"></div>
+
+<script>
+const BROKER_URL = 'wss://broker.emqx.io:8084/mqtt';
+const COLORS = ['#4f8ef7','#7c5ef7','#f7a65a','#3dd68c','#f7645a','#f7d65a','#5af7e8','#f75ab8'];
+const MAX_FILE_BYTES = 3 * 1024 * 1024;
+const CHUNK_SIZE = 60000;
+const MAX_IMG_PX = 1200;
+const MAX_HISTORY = 100; // сообщений в localStorage
+
+let client=null, myName='', myRoom='', myRoomHash='', myColor='', myId='', cryptoKey=null, myPass='';
+let members={}, pingInterval=null, watchdogInterval=null;
+let incomingFiles = {};
+let lastMqttActivity=0; // timestamp последней активности MQTT
+let isReconnecting=false;
+let historyLoaded=false; // чтобы не дублировать историю при reconnect
+
+// WebRTC
+let peerConn=null, localStream=null, callTimerInt=null, callStartTime=null;
+let isVideoCall=false, isMuted=false, isCamOff=false;
+let pendingOffer=null, pendingCallerId=null, pendingCallerName='';
+let callEnding=false; // защита от повторного вызова endCall
+
+// ===== WAKE LOCK (экран не гаснет во время звонка) =====
+let wakeLock=null;
+async function requestWakeLock(){
+  try{
+    if('wakeLock' in navigator){
+      wakeLock=await navigator.wakeLock.request('screen');
+      wakeLock.addEventListener('release',()=>{wakeLock=null;});
+    }
+  }catch(e){}
+}
+async function releaseWakeLock(){
+  try{if(wakeLock){await wakeLock.release();wakeLock=null;}}catch(e){}
+}
+// Переполучить WakeLock и восстановить соединения если страница снова видима
+document.addEventListener('visibilitychange',async()=>{
+  if(document.visibilityState==='visible'){
+    // Восстановить wake lock
+    if(localStream)await requestWakeLock();
+    // Разбудить AudioContext (iOS приостанавливает его)
+    if(bgAudioCtx&&bgAudioCtx.state==='suspended'){
+      bgAudioCtx.resume().catch(()=>{});
+    }
+    // Если идёт звонок — проверить состояние peer connection
+    if(peerConn){
+      const s=peerConn.connectionState;
+      if(s==='disconnected'||s==='failed'){
+        try{peerConn.restartIce();}catch(e){}
+      }
+    }
+    // Проверить MQTT — если упал пока были в фоне
+    if(client&&!client.isConnected()&&myRoom){
+      scheduleReconnect();
+    }
+  }
+});
+
+// ===== ФОНОВОЕ АУДИО — держим AudioContext живым =====
+let bgAudioCtx=null, bgSilentSource=null;
+function startBackgroundAudio(){
+  try{
+    if(bgAudioCtx&&bgAudioCtx.state!=='closed'){
+      // Уже запущен — просто возобновляем если был suspended
+      if(bgAudioCtx.state==='suspended')bgAudioCtx.resume();
+      return;
+    }
+    bgAudioCtx=new (window.AudioContext||window.webkitAudioContext)();
+    function playLoop(){
+      if(!bgAudioCtx||bgAudioCtx.state==='closed')return;
+      try{
+        const buf=bgAudioCtx.createBuffer(1,bgAudioCtx.sampleRate*2,bgAudioCtx.sampleRate);
+        const src=bgSilentSource=bgAudioCtx.createBufferSource();
+        src.buffer=buf;
+        src.connect(bgAudioCtx.destination);
+        src.onended=()=>{if(localStream)playLoop();};
+        src.start(0);
+      }catch(e){}
+    }
+    if(bgAudioCtx.state==='suspended'){
+      bgAudioCtx.resume().then(playLoop);
+    }else{
+      playLoop();
+    }
+  }catch(e){}
+}
+function stopBackgroundAudio(){
+  try{
+    if(bgSilentSource){try{bgSilentSource.stop();}catch(e){} bgSilentSource=null;}
+    if(bgAudioCtx){bgAudioCtx.close();bgAudioCtx=null;}
+  }catch(e){}
+}
+
+// ===== УВЕДОМЛЕНИЯ — входящий звонок даже при свёрнутом приложении =====
+async function ensureNotifPermission(){
+  try{
+    if('Notification' in window&&Notification.permission==='default'){
+      await Notification.requestPermission();
+    }
+  }catch(e){}
+}
+function showIncomingCallNotification(callerName){
+  try{
+    if('Notification' in window&&Notification.permission==='granted'&&document.hidden){
+      const n=new Notification('📞 Входящий звонок',{
+        body:`${callerName} звонит тебе`,
+        icon:'favicon.png',
+        tag:'incoming-call',
+        requireInteraction:true,
+        silent:false
+      });
+      n.onclick=()=>{window.focus();n.close();};
+    }
+  }catch(e){}
+}
+
+function $(id){return document.getElementById(id);}
+function showToast(t,d=2800){const el=$('toast');el.textContent=t;el.classList.add('show');setTimeout(()=>el.classList.remove('show'),d);}
+function autoResize(el){el.style.height='auto';el.style.height=Math.min(el.scrollHeight,120)+'px';}
+function scrollBottom(){const m=$('messages');m.scrollTop=m.scrollHeight;}
+function formatTime(ts){return new Date(ts).toLocaleTimeString('ru',{hour:'2-digit',minute:'2-digit'});}
+function getInitial(n){return n.charAt(0).toUpperCase();}
+function generateId(){return Math.random().toString(36).substr(2,9);}
+function getColor(id){const h=[...id].reduce((s,c)=>s+c.charCodeAt(0),0);return COLORS[h%COLORS.length];}
+function formatBytes(b){if(b<1024)return b+' Б';if(b<1048576)return(b/1024).toFixed(1)+' КБ';return(b/1048576).toFixed(1)+' МБ';}
+function isImage(name){return /\.(jpe?g|png|gif|webp|bmp)$/i.test(name);}
+function fileIcon(name){
+  if(isImage(name))return'🖼';
+  if(/\.(mp4|mov|avi|mkv|webm)$/i.test(name))return'🎬';
+  if(/\.(mp3|ogg|wav|aac|flac)$/i.test(name))return'🎵';
+  if(/\.pdf$/i.test(name))return'📄';
+  if(/\.(zip|rar|7z)$/i.test(name))return'🗜';
+  if(/\.(doc|docx)$/i.test(name))return'📝';
+  return'📁';
+}
+function fmtDuration(secs){const m=Math.floor(secs/60),s=Math.round(secs%60);return `${m}:${String(s).padStart(2,'0')}`;}
+
+// ===== CRYPTO =====
+async function sha256hex(s){const b=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(s));return[...new Uint8Array(b)].map(x=>x.toString(16).padStart(2,'0')).join('');}
+async function deriveKey(pw,salt){
+  const km=await crypto.subtle.importKey('raw',new TextEncoder().encode(pw),{name:'PBKDF2'},false,['deriveKey']);
+  return crypto.subtle.deriveKey({name:'PBKDF2',salt:new TextEncoder().encode(salt),iterations:100000,hash:'SHA-256'},km,{name:'AES-GCM',length:256},false,['encrypt','decrypt']);
+}
+async function encrypt(text){
+  const iv=crypto.getRandomValues(new Uint8Array(12));
+  const enc=await crypto.subtle.encrypt({name:'AES-GCM',iv},cryptoKey,new TextEncoder().encode(text));
+  const c=new Uint8Array(12+enc.byteLength);c.set(iv,0);c.set(new Uint8Array(enc),12);
+  return btoa(String.fromCharCode(...c));
+}
+async function decrypt(b64){
+  try{
+    const c=Uint8Array.from(atob(b64),x=>x.charCodeAt(0));
+    const dec=await crypto.subtle.decrypt({name:'AES-GCM',iv:c.slice(0,12)},cryptoKey,c.slice(12));
+    return new TextDecoder().decode(dec);
+  }catch{return null;}
+}
+
+// ===== E2E ШИФРОВАНИЕ ЗВОНКОВ (Insertable Streams / WebRTC Transform) =====
+// Используем тот же cryptoKey что и для чата (AES-256-GCM, производный от пароля комнаты)
+// Каждый RTP-фрейм: [12 байт IV][зашифрованные данные]
+
+let callEncryptKey = null; // exportable CryptoKey для использования в Worker
+
+async function deriveCallKey(password, room) {
+  // Отдельный подключ для медиа — чтобы не путать с текстовым ключом
+  const km = await crypto.subtle.importKey('raw', new TextEncoder().encode(password), {name:'PBKDF2'}, false, ['deriveKey']);
+  return crypto.subtle.deriveKey(
+    {name:'PBKDF2', salt: new TextEncoder().encode('call:'+room), iterations: 50000, hash:'SHA-256'},
+    km, {name:'AES-GCM', length:256}, true, ['encrypt','decrypt']
+  );
+}
+
+// Inline Worker для шифрования/дешифрования RTP фреймов
+function makeCallWorkerBlob() {
+  const code = `
+let key = null;
+
+async function importKey(raw) {
+  key = await crypto.subtle.importKey('raw', raw, {name:'AES-GCM', length:256}, false, ['encrypt','decrypt']);
+}
+
+async function encryptFrame(frame, controller) {
+  if (!key) { controller.enqueue(frame); return; }
+  try {
+    const iv = crypto.getRandomValues(new Uint8Array(12));
+    const data = new Uint8Array(frame.data);
+    const enc = await crypto.subtle.encrypt({name:'AES-GCM', iv}, key, data);
+    const out = new Uint8Array(12 + enc.byteLength);
+    out.set(iv, 0);
+    out.set(new Uint8Array(enc), 12);
+    frame.data = out.buffer;
+    controller.enqueue(frame);
+  } catch(e) { controller.enqueue(frame); }
+}
+
+async function decryptFrame(frame, controller) {
+  if (!key) { controller.enqueue(frame); return; }
+  try {
+    const data = new Uint8Array(frame.data);
+    if (data.length < 13) { controller.enqueue(frame); return; }
+    const iv = data.slice(0, 12);
+    const enc = data.slice(12);
+    const dec = await crypto.subtle.decrypt({name:'AES-GCM', iv}, key, enc);
+    frame.data = dec;
+    controller.enqueue(frame);
+  } catch(e) { /* пропускаем повреждённый фрейм */ }
+}
+
+self.onmessage = async (e) => {
+  const { op, readable, writable, keyRaw } = e.data;
+  if (op === 'key') { await importKey(keyRaw); return; }
+  if (op === 'encrypt') {
+    readable.pipeThrough(new TransformStream({ transform: encryptFrame })).pipeTo(writable);
+  }
+  if (op === 'decrypt') {
+    readable.pipeThrough(new TransformStream({ transform: decryptFrame })).pipeTo(writable);
+  }
+};
+  `;
+  return new Blob([code], {type:'application/javascript'});
+}
+
+let callWorker = null;
+
+async function startCallEncryption(pc, password, room) {
+  // Проверяем поддержку Insertable Streams
+  const supported = typeof RTCRtpSender !== 'undefined' &&
+    (typeof RTCRtpSender.prototype.createEncodedStreams === 'function' ||
+     typeof RTCRtpSender.prototype.transform !== 'undefined');
+  if (!supported) {
+    console.warn('[E2E] Insertable Streams не поддерживаются — звонок без доп. шифрования');
+    return false;
+  }
+
+  try {
+    // Получаем raw-байты ключа для передачи в Worker
+    const ck = await deriveCallKey(password, room);
+    const rawKey = await crypto.subtle.exportKey('raw', ck);
+
+    callWorker = new Worker(URL.createObjectURL(makeCallWorkerBlob()));
+    callWorker.postMessage({op:'key', keyRaw: rawKey}, []);
+
+    // Шифруем исходящие треки
+    pc.getSenders().forEach(sender => {
+      if (!sender.track) return;
+      try {
+        if (typeof sender.createEncodedStreams === 'function') {
+          const {readable, writable} = sender.createEncodedStreams();
+          callWorker.postMessage({op:'encrypt', readable, writable}, [readable, writable]);
+        } else if (typeof sender.transform !== 'undefined') {
+          // Chrome 94+ TransformStream API
+          const transform = new TransformStream({ transform: async (frame, ctrl) => {
+            // inline encrypt (fallback без Worker)
+            if (!ck) { ctrl.enqueue(frame); return; }
+            try {
+              const iv = crypto.getRandomValues(new Uint8Array(12));
+              const enc = await crypto.subtle.encrypt({name:'AES-GCM',iv}, ck, new Uint8Array(frame.data));
+              const out = new Uint8Array(12+enc.byteLength); out.set(iv,0); out.set(new Uint8Array(enc),12);
+              frame.data = out.buffer; ctrl.enqueue(frame);
+            } catch { ctrl.enqueue(frame); }
+          }});
+          sender.transform = transform;
+        }
+      } catch(e) {}
+    });
+
+    // Дешифруем входящие треки
+    pc.getReceivers().forEach(receiver => {
+      try {
+        if (typeof receiver.createEncodedStreams === 'function') {
+          const {readable, writable} = receiver.createEncodedStreams();
+          callWorker.postMessage({op:'decrypt', readable, writable}, [readable, writable]);
+        } else if (typeof receiver.transform !== 'undefined') {
+          const transform = new TransformStream({ transform: async (frame, ctrl) => {
+            try {
+              const data = new Uint8Array(frame.data);
+              if (data.length < 13) { ctrl.enqueue(frame); return; }
+              const dec = await crypto.subtle.decrypt({name:'AES-GCM', iv: data.slice(0,12)}, ck, data.slice(12));
+              frame.data = dec; ctrl.enqueue(frame);
+            } catch { /* повреждённый фрейм */ }
+          }});
+          receiver.transform = transform;
+        }
+      } catch(e) {}
+    });
+
+    console.log('[E2E] 🔒 Шифрование звонка активировано (AES-256-GCM)');
+    return true;
+  } catch(e) {
+    console.warn('[E2E] Ошибка при запуске шифрования звонка:', e);
+    return false;
+  }
+}
+
+function stopCallEncryption() {
+  if (callWorker) { callWorker.terminate(); callWorker = null; }
+}
+
+// ===== LOCAL STORAGE: HISTORY =====
+function historyKey(){return `svoychat_history_${myRoomHash}`;}
+
+async function saveMessageToHistory(data){
+  try{
+    const key=historyKey();
+    let hist=[];
+    const raw=localStorage.getItem(key);
+    if(raw)hist=JSON.parse(raw);
+    // Не сохраняем файлы/изображения (слишком большие), только текст и голос
+    if(data.dataUrl&&data.dataUrl.length>5000)return;
+    hist.push(data);
+    if(hist.length>MAX_HISTORY)hist=hist.slice(-MAX_HISTORY);
+    localStorage.setItem(key,JSON.stringify(hist));
+  }catch(e){}
+}
+
+function loadHistory(){
+  try{
+    const raw=localStorage.getItem(historyKey());
+    if(!raw)return;
+    const hist=JSON.parse(raw);
+    if(!hist.length)return;
+    appendSys(`── История (${hist.length} сообщений) ──`);
+    hist.forEach(data=>{
+      if(data.msgType==='voice')appendVoiceMsg(data,false);
+      else appendMessage(data,false);
+    });
+    appendSys('── Конец истории ──');
+  }catch(e){}
+}
+
+// ===== SAVED ROOMS (localStorage) =====
+function getSavedRooms(){try{return JSON.parse(localStorage.getItem('svoychat_rooms')||'[]');}catch{return[];}}
+function saveSavedRoom(name,room){
+  let list=getSavedRooms().filter(r=>r.room!==room);
+  list.unshift({name,room,ts:Date.now()});
+  if(list.length>5)list=list.slice(0,5);
+  localStorage.setItem('svoychat_rooms',JSON.stringify(list));
+}
+function deleteSavedRoom(room){
+  let list=getSavedRooms().filter(r=>r.room!==room);
+  localStorage.setItem('svoychat_rooms',JSON.stringify(list));
+  renderSavedRooms();
+}
+function renderSavedRooms(){
+  const list=getSavedRooms();
+  const section=$('savedRoomsSection');
+  const container=$('savedRoomsList');
+  if(!list.length){section.style.display='none';return;}
+  section.style.display='flex';
+  container.innerHTML='';
+  list.forEach(r=>{
+    const div=document.createElement('div');div.style.display='flex';div.style.gap='6px';div.style.alignItems='center';
+    const btn=document.createElement('button');btn.className='saved-room-btn';btn.style.flex='1';
+    btn.innerHTML=`<span>🔑 <b>${r.room}</b></span><span style="color:var(--muted);font-size:.7rem;">${r.name}</span>`;
+    btn.onclick=()=>{$('nameInput').value=r.name;$('roomInput').value=r.room;$('passInput').focus();};
+    const del=document.createElement('button');del.className='saved-room-del';del.textContent='✕';
+    del.onclick=(e)=>{e.stopPropagation();deleteSavedRoom(r.room);};
+    div.appendChild(btn);div.appendChild(del);
+    container.appendChild(div);
+  });
+}
+
+// ===== IMAGE RESIZE =====
+function resizeImage(file){
+  return new Promise(resolve=>{
+    const img=new Image();
+    const url=URL.createObjectURL(file);
+    img.onload=()=>{
+      let w=img.width,h=img.height;
+      const max=MAX_IMG_PX;
+      if(w>max||h>max){if(w>h){h=Math.round(h*max/w);w=max;}else{w=Math.round(w*max/h);h=max;}}
+      const canvas=document.createElement('canvas');canvas.width=w;canvas.height=h;
+      canvas.getContext('2d').drawImage(img,0,0,w,h);
+      URL.revokeObjectURL(url);
+      canvas.toBlob(blob=>resolve(blob),'image/jpeg',0.82);
+    };
+    img.src=url;
+  });
+}
+
+// ===== MEMBERS =====
+function updateMembersBar(){
+  const bar=$('membersBar');
+  bar.innerHTML='<span style="color:var(--muted);font-size:.68rem;">Онлайн:</span>';
+  Object.values(members).forEach(m=>{
+    const t=document.createElement('span');t.className='member-tag';
+    t.textContent=m.name;t.style.borderColor=m.color;t.style.color=m.color;
+    bar.appendChild(t);
+  });
+  $('onlineCount').textContent=Object.keys(members).length+' онлайн';
+}
+
+// ===== RENDER =====
+function makeBubble(data){
+  const isMine=data.id===myId;
+  const color=data.color||getColor(data.id||'0');
+  const w=document.createElement('div');w.className='msg'+(isMine?' mine':'');
+  const av=document.createElement('div');av.className='msg-avatar';
+  av.textContent=getInitial(data.name);
+  av.style.cssText=`background:${color}22;color:${color};border:1px solid ${color}44`;
+  const b=document.createElement('div');b.className='msg-bubble';
+  if(!isMine){const n=document.createElement('div');n.className='msg-name';n.style.color=color;n.textContent=data.name;b.appendChild(n);}
+  return{w,av,b,isMine};
+}
+function finishBubble(w,av,b,ts){
+  const t=document.createElement('div');t.className='msg-time';t.textContent=formatTime(ts);b.appendChild(t);
+  w.appendChild(av);w.appendChild(b);$('messages').appendChild(w);scrollBottom();
+}
+
+function appendMessage(data,save=true){
+  const{w,av,b}=makeBubble(data);
+  const el=document.createElement('div');el.textContent=data.text;b.appendChild(el);
+  finishBubble(w,av,b,data.ts);
+  if(save)saveMessageToHistory(data);
+}
+
+function appendImageMsg(data){
+  const{w,av,b}=makeBubble(data);
+  const img=document.createElement('img');img.className='msg-img';
+  img.src=data.dataUrl;img.alt=data.filename||'фото';
+  img.onclick=()=>openLightbox(data.dataUrl);
+  b.appendChild(img);
+  finishBubble(w,av,b,data.ts);
+}
+
+function appendFileMsg(data){
+  const{w,av,b}=makeBubble(data);
+  const div=document.createElement('div');div.className='msg-file';
+  div.innerHTML=`<span class="msg-file-icon">${fileIcon(data.filename||'')}</span>
+    <span><div class="msg-file-name">${data.filename||'Файл'}</div>
+    <div class="msg-file-meta">${data.filesize?formatBytes(data.filesize):''} · нажми скачать</div></span>`;
+  div.onclick=()=>downloadFile(data.dataUrl,data.filename);
+  b.appendChild(div);
+  finishBubble(w,av,b,data.ts);
+}
+
+function appendVoiceMsg(data,save=true){
+  const{w,av,b}=makeBubble(data);
+  const wrapper=document.createElement('div');wrapper.className='msg-voice';
+
+  const playBtn=document.createElement('button');playBtn.className='voice-play-btn';playBtn.textContent='▶';
+
+  const wave=document.createElement('div');wave.className='voice-wave';
+  const bars=20;
+  const ampArr=data.waveform||Array.from({length:bars},()=>Math.random());
+  for(let i=0;i<bars;i++){
+    const bar=document.createElement('div');bar.className='voice-bar';
+    bar.style.height=Math.max(4,Math.round(ampArr[i]*24))+'px';
+    wave.appendChild(bar);
+  }
+
+  const dur=document.createElement('span');dur.className='voice-duration';
+  dur.textContent=fmtDuration(data.duration||0);
+
+  wrapper.appendChild(playBtn);wrapper.appendChild(wave);wrapper.appendChild(dur);
+  b.appendChild(wrapper);
+  finishBubble(w,av,b,data.ts);
+
+  let audio=null;
+  let playing=false;
+  let progInt=null;
+  playBtn.onclick=()=>{
+    if(!playing){
+      if(!audio){audio=new Audio(data.dataUrl);}
+      audio.play();playing=true;playBtn.textContent='⏸';
+      const barEls=wave.querySelectorAll('.voice-bar');
+      progInt=setInterval(()=>{
+        if(!audio.duration)return;
+        const pct=audio.currentTime/audio.duration;
+        const idx=Math.floor(pct*bars);
+        barEls.forEach((b,i)=>b.classList.toggle('active',i<=idx));
+        dur.textContent=fmtDuration(audio.currentTime);
+      },100);
+      audio.onended=()=>{playing=false;playBtn.textContent='▶';clearInterval(progInt);dur.textContent=fmtDuration(data.duration||0);barEls.forEach(b=>b.classList.remove('active'));};
+    }else{audio.pause();playing=false;playBtn.textContent='▶';clearInterval(progInt);}
+  };
+
+  if(save)saveMessageToHistory(data);
+}
+
+function appendSys(text){
+  const el=document.createElement('div');el.className='sys-msg';el.textContent=text;
+  $('messages').appendChild(el);scrollBottom();
+}
+
+// ===== DOWNLOAD =====
+function downloadFile(dataUrl,filename){
+  const a=document.createElement('a');a.href=dataUrl;a.download=filename||'file';a.click();
+}
+
+// ===== LIGHTBOX =====
+function openLightbox(src){$('lightboxImg').src=src;$('lightbox').classList.add('show');}
+function closeLightbox(){$('lightbox').classList.remove('show');}
+
+// ===== VOICE RECORDING — Telegram style =====
+let mediaRecorder=null, voiceChunks=[], isRecording=false, voiceCancelled=false;
+let voiceTimerInt=null, voiceStartTime=0;
+let audioCtx=null, analyser=null, voiceAnimFrame=null;
+let waveBarEls=[];
+
+function onInputChange(el){
+  autoResize(el);
+  updateActionBtn();
+}
+
+function updateActionBtn(){
+  const btn=$('mainActionBtn');
+  const hasText=$('msgInput').value.trim().length>0;
+  if(hasText){
+    btn.textContent='➤';
+    btn.style.background='linear-gradient(135deg,var(--accent),var(--accent2))';
+    btn.onclick=sendMessage;
+    btn.onmousedown=null;btn.ontouchstart=null;
+    btn.onmouseup=null;btn.ontouchend=null;
+  }else{
+    btn.textContent='🎙';
+    btn.style.background='linear-gradient(135deg,var(--accent),var(--accent2))';
+    btn.onmousedown=null;btn.onmouseup=null;
+    btn.ontouchstart=null;btn.ontouchmove=null;btn.ontouchend=null;
+    // Tap to toggle recording
+    btn.onclick=e=>{e.preventDefault();startVoiceRecord();};
+  }
+}
+
+function buildWavePreview(){
+  const c=$('voiceWavePreview');c.innerHTML='';waveBarEls=[];
+  for(let i=0;i<40;i++){
+    const b=document.createElement('div');b.className='vwb';b.style.height='4px';
+    c.appendChild(b);waveBarEls.push(b);
+  }
+}
+
+function startWaveAnimation(stream){
+  audioCtx=new AudioContext();
+  analyser=audioCtx.createAnalyser();
+  analyser.fftSize=64;
+  const src=audioCtx.createMediaStreamSource(stream);
+  src.connect(analyser);
+  const buf=new Uint8Array(analyser.frequencyBinCount);
+  const bars=waveBarEls.length;
+  let frame=0;
+  function draw(){
+    voiceAnimFrame=requestAnimationFrame(draw);
+    analyser.getByteFrequencyData(buf);
+    frame++;
+    // Shift old bars left, add new value on right
+    if(frame%2===0){
+      const avg=buf.slice(0,10).reduce((a,b)=>a+b,0)/10;
+      const h=Math.max(3,Math.min(32,Math.round(avg/4)));
+      waveBarEls.forEach((b,i)=>{
+        if(i<bars-1)b.style.height=waveBarEls[i+1].style.height;
+      });
+      waveBarEls[bars-1].style.height=h+'px';
+    }
+  }
+  draw();
+}
+
+function stopWaveAnimation(){
+  if(voiceAnimFrame){cancelAnimationFrame(voiceAnimFrame);voiceAnimFrame=null;}
+  if(audioCtx){audioCtx.close().catch(()=>{});audioCtx=null;}
+}
+
+async function startVoiceRecord(){
+  if(isRecording)return;
+  voiceCancelled=false;
+  try{
+    const stream=await navigator.mediaDevices.getUserMedia({audio:true});
+    voiceChunks=[];
+    const mimeType=MediaRecorder.isTypeSupported('audio/webm;codecs=opus')?'audio/webm;codecs=opus':
+                   MediaRecorder.isTypeSupported('audio/webm')?'audio/webm':
+                   MediaRecorder.isTypeSupported('audio/ogg')?'audio/ogg':'';
+    mediaRecorder=new MediaRecorder(stream,mimeType?{mimeType}:{});
+    mediaRecorder.ondataavailable=e=>{if(e.data&&e.data.size>0)voiceChunks.push(e.data);};
+    mediaRecorder.start(100);
+    isRecording=true;
+    voiceStartTime=Date.now();
+
+    // Show record bar
+    buildWavePreview();
+    $('voiceRecordBar').classList.add('show');
+    $('mainActionBtn').style.display='none';
+
+    // Timer
+    voiceTimerInt=setInterval(()=>{
+      const s=Math.floor((Date.now()-voiceStartTime)/1000);
+      $('voiceTimer').textContent=fmtDuration(s);
+      // Max 2 min
+      if(s>=120)stopVoiceRecord();
+    },500);
+
+    // Live waveform
+    startWaveAnimation(stream);
+
+  }catch(e){
+    showToast('Нет доступа к микрофону');
+  }
+}
+
+function cancelVoiceRecord(){
+  if(!isRecording)return;
+  voiceCancelled=true;
+  isRecording=false;
+  clearInterval(voiceTimerInt);
+  stopWaveAnimation();
+  if(mediaRecorder&&mediaRecorder.state!=='inactive'){
+    mediaRecorder.stream.getTracks().forEach(t=>t.stop());
+    mediaRecorder.stop();
+  }
+  $('voiceRecordBar').classList.remove('show');
+  $('mainActionBtn').style.display='';
+  $('voiceTimer').textContent='0:00';
+  showToast('Запись отменена');
+}
+
+async function stopVoiceRecord(){
+  if(!isRecording||!mediaRecorder)return;
+  isRecording=false;
+  clearInterval(voiceTimerInt);
+  stopWaveAnimation();
+  $('voiceRecordBar').classList.remove('show');
+  $('mainActionBtn').style.display='';
+  updateActionBtn();
+
+  return new Promise(resolve=>{
+    mediaRecorder.onstop=async()=>{
+      const tracks=mediaRecorder.stream.getTracks();
+      tracks.forEach(t=>t.stop());
+
+      if(voiceCancelled){resolve();return;}
+
+      const mimeUsed=mediaRecorder.mimeType||'audio/webm';
+      const blob=new Blob(voiceChunks,{type:mimeUsed});
+
+      if(blob.size<2000){showToast('Слишком короткое сообщение');resolve();return;}
+
+      const dataUrl=await blobToDataUrl(blob);
+
+      // Get real duration
+      let duration=0;
+      try{
+        const ab=await blob.arrayBuffer();
+        const actx=new AudioContext();
+        const dec=await actx.decodeAudioData(ab.slice(0));
+        duration=dec.duration;
+        actx.close();
+      }catch(e){
+        duration=Math.floor((Date.now()-voiceStartTime)/1000);
+      }
+
+      // Real waveform from blob
+      const waveform=await extractWaveform(blob,20);
+
+      const data={id:myId,name:myName,color:myColor,msgType:'voice',dataUrl,duration,waveform,ts:Date.now()};
+      appendVoiceMsg(data);
+      if(client&&client.isConnected()){
+        await sendVoiceData(data);
+      }else{
+        showToast('Нет соединения, сообщение не отправлено');
+      }
+      resolve();
+    };
+    if(mediaRecorder.state!=='inactive')mediaRecorder.stop();
+    else resolve();
+  });
+}
+
+async function extractWaveform(blob,bars){
+  try{
+    const ab=await blob.arrayBuffer();
+    const actx=new AudioContext();
+    const decoded=await actx.decodeAudioData(ab);
+    actx.close();
+    const ch=decoded.getChannelData(0);
+    const step=Math.floor(ch.length/bars);
+    const wf=[];
+    for(let i=0;i<bars;i++){
+      let max=0;
+      for(let j=0;j<step;j++){const v=Math.abs(ch[i*step+j]||0);if(v>max)max=v;}
+      wf.push(max);
+    }
+    const peak=Math.max(...wf)||1;
+    return wf.map(v=>v/peak);
+  }catch(e){
+    return Array.from({length:bars},()=>Math.random()*0.7+0.3);
+  }
+}
+
+async function sendVoiceData(data){
+  const {dataUrl,...rest}=data;
+  const totalChunks=Math.ceil(dataUrl.length/CHUNK_SIZE);
+  const voiceId=generateId();
+  const meta={type:'voice_meta',voiceId,totalChunks,...rest};
+  publishRaw('voice',await encrypt(JSON.stringify(meta)));
+  await sleep(80);
+  for(let i=0;i<totalChunks;i++){
+    const chunk={type:'voice_chunk',voiceId,idx:i,total:totalChunks,data:dataUrl.slice(i*CHUNK_SIZE,(i+1)*CHUNK_SIZE)};
+    publishRaw('voice',await encrypt(JSON.stringify(chunk)));
+    if(i%5===4)await sleep(40);
+  }
+}
+
+let incomingVoice={};
+function handleIncomingVoiceMeta(data){
+  incomingVoice[data.voiceId]={meta:data,chunks:{},received:0};
+}
+function handleIncomingVoiceChunk(data){
+  const f=incomingVoice[data.voiceId];if(!f)return;
+  f.chunks[data.idx]=data.data;f.received++;
+  if(f.received>=data.total){
+    let full='';for(let i=0;i<data.total;i++)full+=f.chunks[i]||'';
+    delete incomingVoice[data.voiceId];
+    const{voiceId,totalChunks,type,...rest}=f.meta;
+    appendVoiceMsg({...rest,dataUrl:full});
+  }
+}
+
+function blobToDataUrl(blob){return new Promise(r=>{const fr=new FileReader();fr.onload=e=>r(e.target.result);fr.readAsDataURL(blob);});}
+
+// ===== FILE SEND =====
+async function handleFileSelect(e){
+  const file=e.target.files[0];e.target.value='';
+  if(!file)return;
+  if(!client||!client.isConnected()){showToast('Нет соединения...');return;}
+  let processedFile=file;
+  if(isImage(file.name)&&file.size>200*1024){showToast('Сжимаю изображение...',1500);const blob=await resizeImage(file);processedFile=new File([blob],file.name.replace(/\.[^.]+$/,'.jpg'),{type:'image/jpeg'});}
+  if(processedFile.size>MAX_FILE_BYTES){showToast(`Файл слишком большой (макс. 3 МБ)`);return;}
+  await sendFile(processedFile);
+}
+
+async function sendFile(file){
+  const base64=await new Promise((res,rej)=>{const r=new FileReader();r.onload=e=>res(e.target.result);r.onerror=rej;r.readAsDataURL(file);});
+  const fileId=generateId();
+  const totalChunks=Math.ceil(base64.length/CHUNK_SIZE);
+  const meta={type:'file_meta',id:myId,name:myName,color:myColor,fileId,filename:file.name,filesize:file.size,mimeType:file.type,totalChunks,ts:Date.now()};
+  const{w,av,b}=makeBubble(meta);
+  b.innerHTML=`<div class="upload-msg">📤 Отправляю: ${file.name}<div class="prog-wrap"><div class="prog-bar" id="pb_${fileId}" style="width:0%"></div></div></div>`;
+  w.appendChild(av);w.appendChild(b);$('messages').appendChild(w);scrollBottom();
+  publishRaw('file',await encrypt(JSON.stringify(meta)));
+  await sleep(100);
+  for(let i=0;i<totalChunks;i++){
+    const chunk={type:'file_chunk',id:myId,fileId,idx:i,total:totalChunks,data:base64.slice(i*CHUNK_SIZE,(i+1)*CHUNK_SIZE)};
+    publishRaw('file',await encrypt(JSON.stringify(chunk)));
+    const pct=Math.round((i+1)/totalChunks*100);
+    const pb=document.getElementById('pb_'+fileId);if(pb)pb.style.width=pct+'%';
+    if(i%5===4)await sleep(50);
+  }
+  w.remove();
+  const doneData={...meta,dataUrl:base64,type:isImage(file.name)?'image':'file'};
+  if(isImage(file.name))appendImageMsg(doneData);else appendFileMsg(doneData);
+}
+
+function handleIncomingFileMeta(data){
+  incomingFiles[data.fileId]={meta:data,chunks:{},received:0};
+  const{w,av,b}=makeBubble(data);
+  b.innerHTML=`<div class="upload-msg">📥 Получаю: ${data.filename}<div class="prog-wrap"><div class="prog-bar" id="rpb_${data.fileId}" style="width:0%"></div></div></div>`;
+  w.id='recv_'+data.fileId;w.appendChild(av);w.appendChild(b);$('messages').appendChild(w);scrollBottom();
+}
+function handleIncomingFileChunk(data){
+  const f=incomingFiles[data.fileId];if(!f)return;
+  f.chunks[data.idx]=data.data;f.received++;
+  const pct=Math.round(f.received/data.total*100);
+  const pb=document.getElementById('rpb_'+data.fileId);if(pb)pb.style.width=pct+'%';
+  if(f.received>=data.total){
+    let full='';for(let i=0;i<data.total;i++)full+=f.chunks[i]||'';
+    const recvEl=document.getElementById('recv_'+data.fileId);if(recvEl)recvEl.remove();
+    delete incomingFiles[data.fileId];
+    const doneData={...f.meta,dataUrl:full};
+    if(isImage(f.meta.filename))appendImageMsg(doneData);else appendFileMsg(doneData);
+  }
+}
+
+// ===== SDP ПАТЧ — минимальная задержка Opus =====
+function patchSdpForLowLatency(sdp){
+  // 1. ptime:10 — пакет каждые 10мс вместо стандартных 20мс (вдвое быстрее)
+  // 2. maxptime:10 — запрещаем пакетировать больше 10мс
+  // 3. Opus параметры: cbr (постоянный битрейт), минимум FEC для скорости, useinbandfec=0
+  let s=sdp;
+
+  // Вставляем ptime/maxptime после каждой строки m=audio
+  s=s.replace(/(m=audio[^\n]*\n)/g,'$1a=ptime:10\na=maxptime:10\n');
+
+  // Патчим fmtp для Opus: добавляем/заменяем параметры
+  s=s.replace(/(a=fmtp:\d+ )(.*opus.*)/gi,(match,prefix,params)=>{
+    // Убираем старые конфликтующие параметры
+    let p=params.replace(/maxplaybackrate=\d+/,'')
+                .replace(/sprop-maxcapturerate=\d+/,'')
+                .replace(/useinbandfec=\d/,'')
+                .replace(/stereo=\d/,'')
+                .replace(/cbr=\d/,'')
+                .replace(/maxaveragebitrate=\d+/,'')
+                .replace(/;;/g,';').replace(/^;|;$/g,'');
+    // Добавляем оптимальные для речи с минимальной задержкой
+    const extras='maxplaybackrate=16000;sprop-maxcapturerate=16000;useinbandfec=0;stereo=0;cbr=1;maxaveragebitrate=32000';
+    return prefix+(p?p+';':'')+extras;
+  });
+
+  return s;
+}
+
+// ===== E2E ШИФРОВАНИЕ МЕДИА (Insertable Streams / RTCRtpScriptTransform) =====
+// Ключ выводится из пароля комнаты — тот же что для сообщений, но отдельный контекст
+let callMediaKey = null;
+
+async function deriveCallKey(pass, room) {
+  const enc = new TextEncoder();
+  const baseKey = await crypto.subtle.importKey('raw', enc.encode(pass + ':call:' + room), 'PBKDF2', false, ['deriveKey']);
+  return crypto.subtle.deriveKey(
+    { name: 'PBKDF2', salt: enc.encode('svoychat_call_' + room), iterations: 100000, hash: 'SHA-256' },
+    baseKey, { name: 'AES-GCM', length: 256 }, false, ['encrypt', 'decrypt']
+  );
+}
+
+// Трансформер для шифрования исходящих RTP-фреймов
+function makeSenderTransform(key) {
+  return new TransformStream({
+    async transform(frame, controller) {
+      try {
+        const iv = crypto.getRandomValues(new Uint8Array(12));
+        const data = frame.data instanceof ArrayBuffer ? frame.data : frame.data.buffer;
+        // Оставляем первые 10 байт заголовка RTP нетронутыми (важно для WebRTC)
+        const headerLen = 10;
+        const header = data.slice(0, headerLen);
+        const payload = data.slice(headerLen);
+        if (payload.byteLength === 0) { controller.enqueue(frame); return; }
+        const encrypted = await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, key, payload);
+        // Формат: [header(10)][iv(12)][ciphertext]
+        const out = new Uint8Array(headerLen + 12 + encrypted.byteLength);
+        out.set(new Uint8Array(header), 0);
+        out.set(iv, headerLen);
+        out.set(new Uint8Array(encrypted), headerLen + 12);
+        frame.data = out.buffer;
+        controller.enqueue(frame);
+      } catch(e) { controller.enqueue(frame); }
+    }
+  });
+}
+
+// Трансформер для расшифровки входящих RTP-фреймов
+function makeReceiverTransform(key) {
+  return new TransformStream({
+    async transform(frame, controller) {
+      try {
+        const data = frame.data instanceof ArrayBuffer ? frame.data : frame.data.buffer;
+        const headerLen = 10;
+        if (data.byteLength <= headerLen + 12) { controller.enqueue(frame); return; }
+        const header = data.slice(0, headerLen);
+        const iv = data.slice(headerLen, headerLen + 12);
+        const ciphertext = data.slice(headerLen + 12);
+        const decrypted = await crypto.subtle.decrypt({ name: 'AES-GCM', iv: new Uint8Array(iv) }, key, ciphertext);
+        const out = new Uint8Array(headerLen + decrypted.byteLength);
+        out.set(new Uint8Array(header), 0);
+        out.set(new Uint8Array(decrypted), headerLen);
+        frame.data = out.buffer;
+        controller.enqueue(frame);
+      } catch(e) { controller.enqueue(frame); } // если ключ не совпал — пропускаем фрейм
+    }
+  });
+}
+
+// Применяем шифрование ко всем sender/receiver в peerConn
+function applyCallEncryption(pc, key) {
+  if (!key) return;
+  // Проверяем поддержку Insertable Streams
+  const hasTransform = typeof RTCRtpSender !== 'undefined' && 'createEncodedStreams' in RTCRtpSender.prototype;
+  if (!hasTransform) return; // DTLS достаточно на старых браузерах
+
+  pc.getSenders().forEach(sender => {
+    if (!sender.track) return;
+    try {
+      const { readable, writable } = sender.createEncodedStreams();
+      readable.pipeThrough(makeSenderTransform(key)).pipeTo(writable);
+    } catch(e) {}
+  });
+  pc.getReceivers().forEach(receiver => {
+    try {
+      const { readable, writable } = receiver.createEncodedStreams();
+      readable.pipeThrough(makeReceiverTransform(key)).pipeTo(writable);
+    } catch(e) {}
+  });
+}
+
+// ===== WEBRTC CALLS =====
+// STUN + публичные TURN серверы (нужны за строгим NAT/мобильным интернетом)
+const ICE_SERVERS={
+  iceServers:[
+    {urls:'stun:stun.l.google.com:19302'},
+    {urls:'stun:stun1.l.google.com:19302'},
+    {urls:'stun:stun2.l.google.com:19302'},
+    // Открытые TURN от Metered (работают без регистрации, ограничены по трафику)
+    {urls:'turn:openrelay.metered.ca:80',username:'openrelayproject',credential:'openrelayproject'},
+    {urls:'turn:openrelay.metered.ca:443',username:'openrelayproject',credential:'openrelayproject'},
+    {urls:'turn:openrelay.metered.ca:443?transport=tcp',username:'openrelayproject',credential:'openrelayproject'},
+    // Резервный TURN через UDP
+    {urls:'turn:openrelay.metered.ca:80?transport=udp',username:'openrelayproject',credential:'openrelayproject'}
+  ],
+  iceCandidatePoolSize:10
+};
+
+async function startCall(withVideo=false){
+  if(Object.keys(members).length===0){showToast('Никого нет в комнате');return;}
+  isVideoCall=withVideo;
+  try{
+    localStream=await navigator.mediaDevices.getUserMedia({
+      audio:{
+        echoCancellation:true,
+        noiseSuppression:true,
+        autoGainControl:true,
+        // Минимальная задержка — отключаем буферизацию браузера
+        latency:0,
+        channelCount:1,        // моно — вдвое меньше данных
+        sampleRate:16000       // 16кГц хватает для речи, меньше буфер
+      },
+      video:withVideo
+    });
+  }catch(e){
+    // Fallback без lowlatency constraints если браузер не поддерживает
+    try{
+      localStream=await navigator.mediaDevices.getUserMedia({audio:true,video:withVideo});
+    }catch(e2){showToast('Нет доступа к микрофону/камере');return;}
+  }
+
+  if(withVideo){
+    $('localVideo').srcObject=localStream;$('localVideo').style.display='block';
+    $('remoteVideo').style.display='block';
+  }
+
+  await requestWakeLock();
+  startBackgroundAudio();
+  setupPeerConnection();
+
+  const offer=await peerConn.createOffer({offerToReceiveAudio:true,offerToReceiveVideo:withVideo});
+  // Патчим SDP — минимальный ptime и максимальный битрейт Opus для низкой задержки
+  const patchedOffer={...offer,sdp:patchSdpForLowLatency(offer.sdp)};
+  await peerConn.setLocalDescription(patchedOffer);
+  // 🔒 E2E шифрование медиапотока
+  applyCallEncryption(peerConn, callMediaKey);
+  publishRaw('signal',await encrypt(JSON.stringify({type:'offer',id:myId,name:myName,color:myColor,offer:peerConn.localDescription,withVideo})));
+
+  showCallOverlay(myName,withVideo?'📹 Видеозвонок...':'📞 Звоним...','calling');
+  appendSys(`📞 Ты начал ${withVideo?'видео':'голосовой'} звонок`);
+}
+
+// ===== CALL QUALITY & AUTO-REDIAL STATE =====
+let callQualityInt=null;
+let disconnectWatchdog=null; // таймер — если disconnected слишком долго → пробуем redial
+let autoRedialTimer=null;
+let autoRedialCount=0;
+const MAX_AUTO_REDIAL=3;
+const DISCONNECT_PATIENCE_MS=30000; // 30 сек ждём восстановления до redial
+
+function setupPeerConnection(){
+  if(peerConn){
+    try{
+      peerConn.onconnectionstatechange=null;
+      peerConn.oniceconnectionstatechange=null;
+      peerConn.ontrack=null;
+      peerConn.onicecandidate=null;
+      peerConn.close();
+    }catch(e){}
+  }
+  peerConn=new RTCPeerConnection(ICE_SERVERS);
+  if(localStream)localStream.getTracks().forEach(t=>peerConn.addTrack(t,localStream));
+
+  // Приоритет Opus на отправке — устанавливаем до создания offer
+  try{
+    peerConn.getTransceivers().forEach(tr=>{
+      if(tr.sender&&tr.sender.track&&tr.sender.track.kind==='audio'){
+        const params=tr.sender.getParameters();
+        if(params.encodings&&params.encodings.length){
+          params.encodings[0].priority='high';
+          params.encodings[0].networkPriority='high';
+          tr.sender.setParameters(params).catch(()=>{});
+        }
+        // Prefer Opus
+        if(tr.setCodecPreferences){
+          const caps=RTCRtpSender.getCapabilities('audio');
+          if(caps){
+            const opus=caps.codecs.filter(c=>c.mimeType.toLowerCase()==='audio/opus');
+            const rest=caps.codecs.filter(c=>c.mimeType.toLowerCase()!=='audio/opus');
+            if(opus.length)tr.setCodecPreferences([...opus,...rest]);
+          }
+        }
+      }
+    });
+  }catch(e){}
+
+  peerConn.ontrack=e=>{
+    if(e.streams&&e.streams[0]){
+      const stream=e.streams[0];
+      if(isVideoCall){
+        $('remoteVideo').srcObject=stream;
+      }else{
+        // Голосовой звонок — аудио в отдельный <audio> элемент, это даёт меньше задержку
+        $('remoteAudio').srcObject=stream;
+        $('remoteAudio').play().catch(()=>{});
+      }
+      // Минимизируем буфер воспроизведения
+      try{$('remoteVideo').latencyHint='interactive';}catch(ex){}
+    }
+  };
+
+  peerConn.onicecandidate=async e=>{
+    if(e.candidate){
+      publishRaw('signal',await encrypt(JSON.stringify({type:'ice',id:myId,name:myName,candidate:e.candidate})));
+    }
+  };
+
+  let iceRestartAttempts=0;
+
+  peerConn.onconnectionstatechange=()=>{
+    const s=peerConn.connectionState;
+
+    if(s==='connected'){
+      iceRestartAttempts=0;autoRedialCount=0;
+      clearTimeout(disconnectWatchdog);disconnectWatchdog=null;
+      clearTimeout(autoRedialTimer);autoRedialTimer=null;
+      startCallTimer();
+      startQualityMonitor();
+      updateQualityIndicator('good');
+      // Показываем статус шифрования
+      const encBadge=$('callEncBadge');
+      if(encBadge){
+        const hasE2E=typeof RTCRtpSender!=='undefined'&&'createEncodedStreams' in RTCRtpSender.prototype;
+        encBadge.textContent=hasE2E?'🔒 E2E AES-256-GCM':'🔐 DTLS';
+      }
+      // Запускаем E2E шифрование медиапотока
+      startCallEncryption(peerConn, myPass, myRoom).then(ok=>{
+        if(ok) {
+          const e2eBadge=$('callE2e'); if(e2eBadge) e2eBadge.style.opacity='1';
+          setCallStatus('🔒 Зашифрован (AES-256)'); setTimeout(()=>{ if(peerConn&&peerConn.connectionState==='connected') setCallStatus(isVideoCall?'📹 Видеозвонок':'📞 Голосовой звонок'); },2500);
+        }
+      });
+      // Устанавливаем максимальный приоритет битрейта после соединения
+      try{
+        peerConn.getSenders().forEach(sender=>{
+          if(sender.track&&sender.track.kind==='audio'){
+            const p=sender.getParameters();
+            if(p.encodings&&p.encodings.length){
+              p.encodings[0].priority='high';
+              p.encodings[0].networkPriority='high';
+              sender.setParameters(p).catch(()=>{});
+            }
+          }
+        });
+      }catch(e){}
+    }
+
+    if(s==='disconnected'){
+      updateQualityIndicator('poor');
+      setCallStatus('⚠ Восстановление связи...');
+      clearTimeout(disconnectWatchdog);
+      disconnectWatchdog=setTimeout(()=>{
+        if(!peerConn||peerConn.connectionState!=='disconnected')return;
+        iceRestartAttempts++;
+        setCallStatus(`🔄 Переподключение (${iceRestartAttempts})...`);
+        try{peerConn.restartIce();}catch(e){triggerAutoRedial();}
+      },DISCONNECT_PATIENCE_MS);
+    }
+
+    if(s==='failed'){
+      updateQualityIndicator('bad');
+      clearTimeout(disconnectWatchdog);disconnectWatchdog=null;
+      iceRestartAttempts++;
+      if(iceRestartAttempts<=3){
+        setCallStatus(`🔄 ICE restart (${iceRestartAttempts}/3)...`);
+        try{peerConn.restartIce();}catch(e){triggerAutoRedial();}
+      }else{
+        triggerAutoRedial();
+      }
+    }
+
+    if(s==='closed'){
+      stopQualityMonitor();
+    }
+  };
+
+  peerConn.oniceconnectionstatechange=()=>{
+    const s=peerConn.iceConnectionState;
+    if(s==='checking'||s==='new')updateQualityIndicator('checking');
+    if(s==='connected'||s==='completed')updateQualityIndicator('good');
+    if(s==='disconnected')updateQualityIndicator('poor');
+    if(s==='failed'){try{peerConn.restartIce();}catch(e){}}
+  };
+}
+
+// ===== АВТО-ПЕРЕЗВОН =====
+function triggerAutoRedial(){
+  if(autoRedialCount>=MAX_AUTO_REDIAL){
+    appendSys('📵 Не удалось восстановить звонок после нескольких попыток.');
+    endCall(false);
+    return;
+  }
+  autoRedialCount++;
+  const delay=4000*autoRedialCount; // 4, 8, 12 сек
+  setCallStatus(`📞 Автоперезвон через ${delay/1000} сек... (${autoRedialCount}/${MAX_AUTO_REDIAL})`);
+  clearTimeout(autoRedialTimer);
+  autoRedialTimer=setTimeout(async()=>{
+    if(!localStream||callEnding)return;
+    try{
+      // Пересоздаём peer connection и шлём новый offer
+      setupPeerConnection();
+      const offer=await peerConn.createOffer({offerToReceiveAudio:true,offerToReceiveVideo:isVideoCall,iceRestart:true});
+      await peerConn.setLocalDescription(offer);
+      publishRaw('signal',await encrypt(JSON.stringify({
+        type:'offer_restart',id:myId,name:myName,color:myColor,
+        offer:peerConn.localDescription,withVideo:isVideoCall
+      })));
+      setCallStatus('📞 Переустанавливаем соединение...');
+    }catch(e){endCall(false);}
+  },delay);
+}
+
+// ===== ИНДИКАТОР КАЧЕСТВА СВЯЗИ =====
+function updateQualityIndicator(level){
+  const el=$('callQuality');
+  if(!el)return;
+  const map={checking:'🔄 Подключение',good:'🟢 Связь хорошая',poor:'🟡 Слабый сигнал',bad:'🔴 Нет связи'};
+  el.textContent=map[level]||'';
+}
+
+function startQualityMonitor(){
+  stopQualityMonitor();
+  callQualityInt=setInterval(async()=>{
+    if(!peerConn||peerConn.connectionState!=='connected')return;
+    try{
+      const stats=await peerConn.getStats();
+      let packetsLost=0,packetsSent=0,jitter=0,rtt=0;
+      stats.forEach(r=>{
+        if(r.type==='outbound-rtp'&&r.kind==='audio'){packetsSent+=r.packetsSent||0;packetsLost+=(r.packetsLost||0);}
+        if(r.type==='remote-inbound-rtp'&&r.kind==='audio'){rtt=r.roundTripTime||0;jitter=r.jitter||0;}
+      });
+      const lossRate=packetsSent>0?packetsLost/packetsSent:0;
+      let level='good';
+      if(lossRate>0.1||rtt>0.5||jitter>0.05)level='poor';
+      if(lossRate>0.25||rtt>1.2)level='bad';
+      updateQualityIndicator(level);
+      // Показываем числа
+      const details=$('callQualityDetails');
+      if(details){
+        const lossStr=packetsSent>0?`потери: ${(lossRate*100).toFixed(0)}%`:'';
+        const rttStr=rtt>0?`RTT: ${(rtt*1000).toFixed(0)}мс`:'';
+        details.textContent=[lossStr,rttStr].filter(Boolean).join(' · ');
+      }
+    }catch(e){}
+  },3000);
+}
+
+function stopQualityMonitor(){
+  clearInterval(callQualityInt);callQualityInt=null;
+}
+
+function setCallStatus(text){
+  const el=$('callStatus');if(el)el.textContent=text;
+}
+
+async function acceptCall(){
+  $('incomingCallBanner').classList.remove('show');
+  if(!pendingOffer||!pendingCallerId){return;}
+  isVideoCall=pendingOffer.withVideo||false;
+  try{
+    localStream=await navigator.mediaDevices.getUserMedia({
+      audio:{echoCancellation:true,noiseSuppression:true,autoGainControl:true,latency:0,channelCount:1,sampleRate:16000},
+      video:isVideoCall
+    });
+  }catch(e){
+    try{localStream=await navigator.mediaDevices.getUserMedia({audio:true,video:isVideoCall});}
+    catch(e2){showToast('Нет доступа к микрофону/камере');return;}
+  }
+
+  if(isVideoCall){
+    $('localVideo').srcObject=localStream;$('localVideo').style.display='block';
+    $('remoteVideo').style.display='block';
+  }
+
+  await requestWakeLock();
+  startBackgroundAudio();
+  setupPeerConnection();
+
+  await peerConn.setRemoteDescription(new RTCSessionDescription(pendingOffer.offer));
+  const answer=await peerConn.createAnswer();
+  const patchedAnswer={...answer,sdp:patchSdpForLowLatency(answer.sdp)};
+  await peerConn.setLocalDescription(patchedAnswer);
+  // 🔒 E2E шифрование медиапотока
+  applyCallEncryption(peerConn, callMediaKey);
+  publishRaw('signal',await encrypt(JSON.stringify({type:'answer',id:myId,name:myName,answer:peerConn.localDescription})));
+
+  showCallOverlay(pendingCallerName,isVideoCall?'📹 Видеозвонок':'📞 Голосовой звонок','connected');
+  appendSys(`📞 Ты принял звонок от ${pendingCallerName}`);
+  pendingOffer=null;pendingCallerId=null;
+}
+
+function declineCall(){
+  $('incomingCallBanner').classList.remove('show');
+  publishRaw('signal',encrypt(JSON.stringify({type:'decline',id:myId,name:myName})));
+  pendingOffer=null;pendingCallerId=null;
+}
+
+function endCall(fromRemote=false){
+  if(callEnding)return;
+  callEnding=true;
+  clearTimeout(disconnectWatchdog);disconnectWatchdog=null;
+  clearTimeout(autoRedialTimer);autoRedialTimer=null;
+  autoRedialCount=0;
+  stopQualityMonitor();
+  if(peerConn){
+    peerConn.onconnectionstatechange=null;
+    peerConn.oniceconnectionstatechange=null;
+    peerConn.ontrack=null;
+    peerConn.onicecandidate=null;
+    try{peerConn.close();}catch(e){}
+    peerConn=null;
+  }
+  if(localStream){localStream.getTracks().forEach(t=>t.stop());localStream=null;}
+  clearInterval(callTimerInt);callTimerInt=null;
+  const overlay=$('callOverlay');
+  overlay.classList.remove('show','minimized');
+  $('callMinimizeBtn').textContent='▼ Свернуть';
+  $('localVideo').style.display='none';$('remoteVideo').style.display='none';
+  $('localVideo').srcObject=null;$('remoteVideo').srcObject=null;
+  try{$('remoteAudio').srcObject=null;$('remoteAudio').pause();}catch(e){}
+  $('callTimer').textContent='';
+  const qd=$('callQualityDetails');if(qd)qd.textContent='';
+  updateQualityIndicator('checking');
+  isMuted=false;isCamOff=false;
+  $('muteBtn').textContent='🎤';$('muteBtn').classList.remove('muted');
+  $('camBtn').textContent='📷';$('camBtn').classList.remove('off');
+  releaseWakeLock();
+  stopBackgroundAudio();
+  stopCallEncryption();
+  const e2eBadge=$('callE2e'); if(e2eBadge) e2eBadge.style.opacity='0';
+  if(!fromRemote){
+    publishRaw('signal',encrypt(JSON.stringify({type:'hangup',id:myId,name:myName})));
+  }
+  setTimeout(()=>{callEnding=false;},1500);
+}
+
+function toggleMinimizeCall(){
+  const overlay=$('callOverlay');
+  const isMin=overlay.classList.toggle('minimized');
+  $('callMinimizeBtn').textContent=isMin?'▲ Развернуть':'▼ Свернуть';
+}
+
+function toggleMute(){
+  if(!localStream)return;
+  isMuted=!isMuted;
+  localStream.getAudioTracks().forEach(t=>t.enabled=!isMuted);
+  $('muteBtn').textContent=isMuted?'🔇':'🎤';
+  $('muteBtn').classList.toggle('muted',isMuted);
+}
+function toggleCam(){
+  if(!localStream)return;
+  isCamOff=!isCamOff;
+  localStream.getVideoTracks().forEach(t=>t.enabled=!isCamOff);
+  $('camBtn').classList.toggle('off',isCamOff);
+  $('camBtn').textContent=isCamOff?'🚫':'📷';
+}
+
+function showCallOverlay(name,status,state){
+  $('callAvatar').textContent=getInitial(name);
+  $('callName').textContent=name;
+  $('callStatus').textContent=status;
+  $('callOverlay').classList.add('show');
+}
+
+function startCallTimer(){
+  if(callTimerInt)return; // уже запущен
+  callStartTime=Date.now();
+  setCallStatus('Идёт звонок');
+  callTimerInt=setInterval(()=>{
+    const s=Math.floor((Date.now()-callStartTime)/1000);
+    $('callTimer').textContent=fmtDuration(s);
+  },1000);
+  startQualityMonitor();
+}
+
+async function handleSignal(data){
+  if(data.id===myId)return;
+  if(data.type==='offer'||data.type==='offer_restart'){
+    // offer_restart — удалённый конец переустанавливает соединение
+    if(data.type==='offer_restart'&&peerConn&&localStream){
+      // Принимаем перезапуск без показа баннера если звонок уже идёт
+      setupPeerConnection();
+      await peerConn.setRemoteDescription(new RTCSessionDescription(data.offer));
+      const answer=await peerConn.createAnswer();
+      await peerConn.setLocalDescription(answer);
+      publishRaw('signal',await encrypt(JSON.stringify({type:'answer',id:myId,name:myName,answer:peerConn.localDescription})));
+      return;
+    }
+    pendingOffer=data;pendingCallerId=data.id;pendingCallerName=data.name||'Собеседник';
+    $('incomingCallerName').textContent=`${pendingCallerName} — ${data.withVideo?'📹 видео':'📞 голос'}`;
+    $('incomingCallBanner').classList.add('show');
+    showIncomingCallNotification(pendingCallerName);
+    setTimeout(()=>$('incomingCallBanner').classList.remove('show'),40000);
+  }else if(data.type==='answer'&&peerConn){
+    await peerConn.setRemoteDescription(new RTCSessionDescription(data.answer));
+    showCallOverlay(data.name,'Соединяемся...','connecting');
+  }else if(data.type==='ice'&&peerConn){
+    try{await peerConn.addIceCandidate(new RTCIceCandidate(data.candidate));}catch(e){}
+  }else if(data.type==='hangup'||data.type==='decline'){
+    endCall(true);
+    appendSys(`📵 ${data.name||'Собеседник'} ${data.type==='hangup'?'завершил звонок':'отклонил звонок'}`);
+  }
+}
+
+// ===== MQTT =====
+function getTopic(sub){return `svojchat/${myRoomHash}/${sub}`;}
+
+function connect(isFirst=false){
+  if(isFirst){myId=generateId();myColor=getColor(myId);}
+  isReconnecting=!isFirst;
+  $('connectingOverlay').classList.add('show');
+  // Уникальный clientId при каждом подключении чтобы брокер не путал
+  const cid=`svoychat_${myId}_${Date.now().toString(36)}`;
+  client=new Paho.Client(BROKER_URL,cid);
+  client.onConnectionLost=r=>{
+    $('statusDot').className='offline';
+    clearInterval(pingInterval);clearInterval(watchdogInterval);
+    if(r.errorCode!==0){appendSys('⚠ Соединение потеряно. Переподключение...');scheduleReconnect();}
+  };
+  client.onMessageArrived=msg=>{lastMqttActivity=Date.now();onMessage(msg);};
+  client.connect({
+    useSSL:true,
+    keepAliveInterval:20,  // уменьшили с 30 до 20 — быстрее детектим разрыв
+    cleanSession:true,
+    onSuccess:onConnected,
+    onFailure:err=>{
+      $('connectingOverlay').classList.remove('show');
+      $('statusDot').className='offline';
+      appendSys('⚠ Ошибка подключения: '+err.errorMessage);
+      scheduleReconnect();
+    }
+  });
+}
+
+let reconnectTimer=null;
+function scheduleReconnect(){
+  if(reconnectTimer)return;
+  reconnectTimer=setTimeout(()=>{reconnectTimer=null;doReconnect();},3000);
+}
+function doReconnect(){
+  try{if(client)client.disconnect();}catch(e){}
+  connect(false);
+}
+
+function onConnected(){
+  $('connectingOverlay').classList.remove('show');
+  $('statusDot').className='online';
+  lastMqttActivity=Date.now();
+  client.subscribe(getTopic('msg'));
+  client.subscribe(getTopic('presence'));
+  client.subscribe(getTopic('file'));
+  client.subscribe(getTopic('voice'));
+  client.subscribe(getTopic('signal'));
+  publishPresence('join');
+  // Ping каждые 20 сек — и обновляет активность
+  clearInterval(pingInterval);
+  pingInterval=setInterval(async()=>{
+    if(!client||!client.isConnected()){scheduleReconnect();return;}
+    publishPresence('ping_tick');
+  },20000);
+  // Watchdog: если 90 сек нет активности — форсируем reconnect
+  // (90 сек вместо 45 — чтобы не рвать соединение при фоновом режиме телефона)
+  clearInterval(watchdogInterval);
+  watchdogInterval=setInterval(()=>{
+    if(!client||!client.isConnected()){return;}
+    const idle=Date.now()-lastMqttActivity;
+    if(idle>90000){
+      appendSys('⚠ Нет активности. Переподключение...');
+      $('statusDot').className='offline';
+      clearInterval(pingInterval);clearInterval(watchdogInterval);
+      doReconnect();
+    }
+  },15000);
+
+  if(isReconnecting){
+    appendSys('✓ Переподключено.');
+    isReconnecting=false;
+  }else{
+    appendSys(`✓ Подключено. Комната: ${myRoom} 🔒`);
+    // Историю грузим только один раз при первом входе
+    if(!historyLoaded){historyLoaded=true;loadHistory();}
+  }
+}
+
+async function publishPresence(type){
+  publishRaw('presence',await encrypt(JSON.stringify({type,id:myId,name:myName,color:myColor})));
+}
+function publishRaw(channel,encB64OrPromise){
+  if(encB64OrPromise instanceof Promise){
+    encB64OrPromise.then(enc=>publishRaw(channel,enc));return;
+  }
+  if(!client||!client.isConnected()){
+    // Если не подключены — инициируем переподключение
+    scheduleReconnect();
+    return;
+  }
+  try{
+    const msg=new Paho.Message(encB64OrPromise);
+    msg.destinationName=getTopic(channel);msg.qos=0;
+    client.send(msg);
+    lastMqttActivity=Date.now();
+  }catch(e){
+    scheduleReconnect();
+  }
+}
+
+async function onMessage(rawMsg){
+  const topic=rawMsg.destinationName;
+  const decrypted=await decrypt(rawMsg.payloadString);
+  if(!decrypted)return;
+  let data;try{data=JSON.parse(decrypted);}catch(e){return;}
+
+  if(topic===getTopic('msg')&&data.id!==myId){appendMessage(data);}
+
+  if(topic===getTopic('file')&&data.id!==myId){
+    if(data.type==='file_meta')handleIncomingFileMeta(data);
+    else if(data.type==='file_chunk')handleIncomingFileChunk(data);
+  }
+
+  if(topic===getTopic('voice')&&data.id!==myId){
+    if(data.type==='voice_meta')handleIncomingVoiceMeta(data);
+    else if(data.type==='voice_chunk')handleIncomingVoiceChunk(data);
+  }
+
+  if(topic===getTopic('signal')){handleSignal(data);}
+
+  if(topic===getTopic('presence')){
+    const{type,id,name,color}=data;if(id===myId)return;
+    if(type==='join'){members[id]={name,color};updateMembersBar();appendSys(`→ ${name} зашёл в чат`);publishPresence('here');}
+    else if(type==='here'){if(!members[id]){members[id]={name,color};updateMembersBar();}}
+    else if(type==='leave'){const mn=members[id]?.name||'???';delete members[id];updateMembersBar();appendSys(`← ${mn} вышел`);}
+    else if(type==='ping_tick'){members[id]={name,color};updateMembersBar();}
+  }
+}
+
+// ===== FIREBASE CONFIG =====
+const firebaseConfig = {
+  apiKey: "AIzaSyBY_TuXU4S8Tm2IkOlYZ_n2Ac_QnVgT6vM",
+  authDomain: "chats-f2c9f.firebaseapp.com",
+  projectId: "chats-f2c9f",
+  storageBucket: "chats-f2c9f.firebasestorage.app",
+  messagingSenderId: "51476203392",
+  appId: "1:51476203392:web:5a9a8b61aa334682fe2365"
+};
+firebase.initializeApp(firebaseConfig);
+const fbAuth = firebase.auth();
+const fbDb = firebase.firestore();
+
+// ===== AUTH =====
+const AVATARS=['😎','🐱','🦊','🐼','🦁','🐸','🤖','👾','🧙','🦄','🐺','🐧'];
+const ACOLORS=['#4f8ef7','#7c5ef7','#f7a65a','#3dd68c','#f7645a','#f7d65a','#5af7e8','#f75ab8'];
+let selectedAvatar=AVATARS[0], selectedAColor=ACOLORS[0];
+
+function buildAvatarRow(){
+  const row=$('avatarRow');row.innerHTML='';
+  AVATARS.forEach((em,i)=>{
+    const btn=document.createElement('button');btn.className='av-opt'+(i===0?' selected':'');
+    btn.textContent=em;btn.type='button';
+    btn.style.background=ACOLORS[i%ACOLORS.length]+'22';
+    btn.onclick=()=>{
+      selectedAvatar=em;selectedAColor=ACOLORS[i%ACOLORS.length];
+      row.querySelectorAll('.av-opt').forEach(b=>b.classList.remove('selected'));
+      btn.classList.add('selected');updatePreview();
+    };
+    row.appendChild(btn);
+  });
+}
+
+function updatePreview(){
+  const name=$('regName').value.trim()||'Твоё имя';
+  const av=$('previewAv');
+  av.textContent=selectedAvatar;
+  av.style.background=selectedAColor+'22';
+  av.style.border=`2px solid ${selectedAColor}44`;
+  $('previewName').textContent=name;
+}
+
+function switchAuthTab(tab){
+  $('tabReg').classList.toggle('active',tab==='reg');
+  $('tabLogin').classList.toggle('active',tab==='login');
+  $('regCard').style.display=tab==='reg'?'flex':'none';
+  $('loginCard').style.display=tab==='login'?'flex':'none';
+}
+
+async function doRegister(){
+  const name=$('regName').value.trim();
+  const email=$('regEmail').value.trim();
+  const pass=$('regPass').value;
+  const pass2=$('regPass2').value;
+  if(!name){showToast('Введи имя');$('regName').focus();return;}
+  if(name.length<2){showToast('Имя минимум 2 символа');return;}
+  if(!email||!email.includes('@')){showToast('Введи корректный email');$('regEmail').focus();return;}
+  if(!pass||pass.length<6){showToast('Пароль минимум 6 символов');$('regPass').focus();return;}
+  if(pass!==pass2){showToast('Пароли не совпадают');$('regPass2').focus();return;}
+  const btn=$('authScreen').querySelector('.btn');
+  btn.disabled=true;btn.textContent='Создаём...';
+  try{
+    const cred=await fbAuth.createUserWithEmailAndPassword(email,pass);
+    const uid=cred.user.uid;
+    const profile={name,avatar:selectedAvatar,color:selectedAColor,email,uid,ts:Date.now(),banned:false};
+    await fbDb.collection('users').doc(uid).set(profile);
+    localStorage.setItem('svoychat_uid',uid);
+    localStorage.setItem('svoychat_profile',JSON.stringify(profile));
+    showToast('Аккаунт создан!',2000);
+    setTimeout(()=>enterWithProfile(profile),400);
+  }catch(e){
+    const msgs={'auth/email-already-in-use':'Email уже используется','auth/invalid-email':'Неверный формат email','auth/weak-password':'Пароль слишком простой'};
+    showToast(msgs[e.code]||'Ошибка: '+e.message);
+  }finally{btn.disabled=false;btn.textContent='Создать аккаунт →';}
+}
+
+async function doLogin(){
+  const email=$('loginEmail').value.trim();
+  const pass=$('loginPass').value;
+  if(!email){showToast('Введи email');$('loginEmail').focus();return;}
+  if(!pass){showToast('Введи пароль');$('loginPass').focus();return;}
+  const btn=$('loginCard').querySelector('.btn');
+  btn.disabled=true;btn.textContent='Входим...';
+  try{
+    const cred=await fbAuth.signInWithEmailAndPassword(email,pass);
+    const uid=cred.user.uid;
+    const doc=await fbDb.collection('users').doc(uid).get();
+    if(!doc.exists){showToast('Профиль не найден');btn.disabled=false;btn.textContent='Войти →';return;}
+    const profile=doc.data();
+    if(profile.banned){showToast('Аккаунт заблокирован');btn.disabled=false;btn.textContent='Войти →';return;}
+    // Обновляем lastSeen
+    await fbDb.collection('users').doc(uid).update({lastSeen:Date.now()});
+    localStorage.setItem('svoychat_uid',uid);
+    localStorage.setItem('svoychat_profile',JSON.stringify(profile));
+    enterWithProfile(profile);
+  }catch(e){
+    const msgs={'auth/user-not-found':'Аккаунт не найден','auth/wrong-password':'Неверный пароль','auth/invalid-email':'Неверный email','auth/invalid-credential':'Неверный email или пароль'};
+    showToast(msgs[e.code]||'Ошибка входа');
+  }finally{btn.disabled=false;btn.textContent='Войти →';}
+}
+
+function enterWithProfile(profile){
+  myName=profile.name;
+  myColor=profile.color||getColor(profile.name);
+  $('nameInput').value=profile.name;
+  // Fill profile bar
+  const av=$('loginBarAv');
+  av.textContent=profile.avatar||profile.name.charAt(0).toUpperCase();
+  av.style.background=(profile.color||'#4f8ef7')+'22';
+  av.style.border=`2px solid ${(profile.color||'#4f8ef7')}44`;
+  $('loginBarName').textContent=profile.name;
+  $('authScreen').style.display='none';
+  $('loginScreen').style.display='flex';
+  renderSavedRooms();
+  $('roomInput').focus();
+}
+
+function goBackToAuth(){
+  $('loginScreen').style.display='none';
+  checkAuth();
+}
+
+async function doLogout(){
+  try{await fbAuth.signOut();}catch(e){}
+  localStorage.removeItem('svoychat_profile');
+  localStorage.removeItem('svoychat_uid');
+  switchAuthTab('reg');
+  buildAvatarRow();updatePreview();
+}
+
+function checkAuth(){
+  // Показываем форму входа сразу с полями email/пароль
+  $('authScreen').style.display='flex';
+  $('loginScreen').style.display='none';
+  // Если есть кэш — показываем вкладку входа
+  const raw=localStorage.getItem('svoychat_profile');
+  if(raw){
+    const profile=JSON.parse(raw);
+    switchAuthTab('login');
+    $('loginPreviewAv').textContent=profile.avatar||profile.name.charAt(0);
+    $('loginPreviewAv').style.background=(profile.color||'#4f8ef7')+'22';
+    $('loginPreviewAv').style.border=`2px solid ${(profile.color||'#4f8ef7')}44`;
+    $('loginPreviewName').textContent=profile.name;
+    $('savedProfilePreview').style.display='flex';
+  } else {
+    switchAuthTab('reg');
+    buildAvatarRow();updatePreview();
+  }
+}
+
+// ===== ACTIONS =====
+async function joinChat(){
+  const name=$('nameInput').value.trim();
+  const room=$('roomInput').value.trim().replace(/\s+/g,'_');
+  const pass=$('passInput').value;
+  if(!name){showToast('Введи своё имя');$('nameInput').focus();return;}
+  if(!room){showToast('Введи название комнаты');$('roomInput').focus();return;}
+  if(!pass){showToast('Введи пароль комнаты');$('passInput').focus();return;}
+  $('joinBtn').disabled=true;$('joinBtn').textContent='Подготовка...';
+  myName=name;myRoom=room;myPass=pass;
+  myRoomHash=(await sha256hex(room+':'+pass)).slice(0,32);
+  cryptoKey=await deriveKey(pass,room);
+  callMediaKey=await deriveCallKey(pass,room);
+  // Save room for quick rejoin
+  saveSavedRoom(name,room);
+  $('loginScreen').style.display='none';
+  $('chatScreen').style.display='flex';
+  $('headerRoom').textContent=myRoom;
+  $('joinBtn').disabled=false;$('joinBtn').textContent='Войти в чат →';
+  historyLoaded=false;
+  ensureNotifPermission();
+  connect(true);$('msgInput').focus();
+}
+
+function leaveChat(){
+  publishPresence('leave');
+  clearInterval(pingInterval);clearInterval(watchdogInterval);
+  if(reconnectTimer){clearTimeout(reconnectTimer);reconnectTimer=null;}
+  endCall();
+  try{client.disconnect();}catch(e){}
+  $('chatScreen').style.display='none';
+  $('loginScreen').style.display='flex';
+  $('authScreen').style.display='none';
+  $('messages').innerHTML='';members={};incomingFiles={};incomingVoice={};cryptoKey=null;
+  historyLoaded=false;isReconnecting=false;
+  $('statusDot').className='';$('passInput').value='';
+  renderSavedRooms();
+}
+
+async function sendMessage(){
+  const input=$('msgInput');const text=input.value.trim();
+  if(!text)return;
+  if(!client||!client.isConnected()){showToast('Нет соединения...');return;}
+  const data={id:myId,name:myName,color:myColor,text,ts:Date.now()};
+  publishRaw('msg',await encrypt(JSON.stringify(data)));
+  appendMessage(data);
+  input.value='';input.style.height='auto';input.focus();
+}
+
+function handleKey(e){if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();sendMessage();}}
+
+// Drag & drop
+document.addEventListener('dragover',e=>e.preventDefault());
+document.addEventListener('drop',async e=>{
+  e.preventDefault();
+  if(!client||!client.isConnected())return;
+  const file=e.dataTransfer.files[0];
+  if(file){
+    let f=file;
+    if(isImage(file.name)&&file.size>200*1024){const blob=await resizeImage(file);f=new File([blob],file.name.replace(/\.[^.]+$/,'.jpg'),{type:'image/jpeg'});}
+    if(f.size>MAX_FILE_BYTES){showToast('Файл слишком большой (макс. 3 МБ)');return;}
+    await sendFile(f);
+  }
+});
+
+function sleep(ms){return new Promise(r=>setTimeout(r,ms));}
+
+window.onload=()=>{
+  $('loginScreen').style.display='none';
+  $('authScreen').style.display='none';
+  checkAuth();
+  renderSavedRooms();
+  updateActionBtn();
+};
+window.addEventListener('beforeunload',()=>{if(client&&client.isConnected())publishPresence('leave');});
+</script>
+</body>
+</html>
