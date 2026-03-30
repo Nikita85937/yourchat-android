@@ -21,6 +21,9 @@ jobs:
         with:
           java-version: '21'
           distribution: 'temurin'
+      - name: Set Version Code
+        run: |
+          sed -i "s/versionCode .*/versionCode ${{ github.run_number }}/" android/app/build.gradle
       - name: Decode Keystore
         run: |
           echo "${{ secrets.KEYSTORE_BASE64 }}" > release.keystore.b64
