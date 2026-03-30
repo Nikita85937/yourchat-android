@@ -1786,7 +1786,7 @@ function toggleMute(){
   if(!localStream)return;
   isMuted=!isMuted;
   localStream.getAudioTracks().forEach(t=>t.enabled=!isMuted);
-  publishPresence('ping_tick'); // сообщаем всем новый статус мута
+  publishMuteState(); // сообщаем всем новый статус мута
   $('muteBtn').innerHTML=isMuted?'<svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="2" width="6" height="12" rx="3"/><path d="M5 10a7 7 0 0 0 14 0"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/><line x1="3" y1="3" x2="21" y2="21" stroke="#f7645a"/></svg>':'<svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="2" width="6" height="12" rx="3"/><path d="M5 10a7 7 0 0 0 14 0"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg>';
   $('muteBtn').classList.toggle('muted',isMuted);
 }
@@ -2017,6 +2017,10 @@ function onConnected(){
 async function publishPresence(type){
   publishRaw('presence',await encrypt(JSON.stringify({type,id:myId,name:myName,color:myColor,muted:isMuted})));
 }
+async function publishMuteState(){
+  // Отдельный быстрый сигнал о состоянии мута — обрабатывается сразу у всех
+  publishRaw('presence',await encrypt(JSON.stringify({type:'mute_state',id:myId,name:myName,color:myColor,muted:isMuted})));
+}
 function publishRaw(channel,encB64OrPromise){
   if(encB64OrPromise instanceof Promise){
     encB64OrPromise.then(enc=>publishRaw(channel,enc));return;
@@ -2062,6 +2066,11 @@ async function onMessage(rawMsg){
     else if(type==='here'){if(!members[id]){members[id]={name,color,muted:data.muted||false};updateMembersBar();}else{members[id].muted=data.muted||false;updateMembersBar();}}
     else if(type==='leave'){const mn=members[id]?.name||'???';delete members[id];updateMembersBar();appendSys(`← ${mn} вышел`);}
     else if(type==='ping_tick'){members[id]={name,color,muted:data.muted||false};updateMembersBar();}
+    else if(type==='mute_state'){
+      if(!members[id])members[id]={name,color};
+      members[id].muted=data.muted||false;
+      updateMembersBar();
+    }
   }
 }
 
@@ -2347,7 +2356,7 @@ const POLICY_TEXTS = {
       <p style="margin:8px 0 12px;">Сервис предоставляется «как есть». Мы не несём ответственности за возможные перебои в работе или потерю данных.</p>
 
       <b style="color:var(--text);">5. Возраст</b>
-      <p style="margin:8px 0 12px;">Приложение предназначено для пользователей от 13 лет и старше.</p>
+      <p style="margin:8px 0 12px;">Приложение предназначено для пользователей от 6 лет и старше.</p>
 
       <b style="color:var(--text);">6. Изменения условий</b>
       <p style="margin:8px 0;">Мы оставляем за собой право изменять условия. Актуальная версия всегда доступна в приложении.</p>
