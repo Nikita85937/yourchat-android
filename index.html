@@ -77,7 +77,8 @@
   .call-btn.active{background:#1a3a20;border-color:var(--green);color:var(--green);}
   .call-btn.video{font-size:.85rem;}
   #membersBar{background:var(--surface2);border-bottom:1px solid var(--border);padding:6px 16px;font-size:.7rem;color:var(--muted);display:flex;gap:8px;flex-wrap:wrap;align-items:center;flex-shrink:0;min-height:30px;}
-  .member-tag{background:var(--surface);border:1px solid var(--border);border-radius:20px;padding:2px 10px;color:var(--accent);font-size:.68rem;}
+  .member-tag{background:var(--surface);border:1px solid var(--border);border-radius:20px;padding:2px 10px;color:var(--accent);font-size:.68rem;display:inline-flex;align-items:center;gap:4px;}
+  .member-tag.muted{border-color:var(--red);opacity:.8;}
 
   /* MESSAGES */
   #messages{flex:1;overflow-y:auto;padding:16px 12px;display:flex;flex-direction:column;gap:6px;scroll-behavior:smooth;}
@@ -167,6 +168,15 @@
   #remoteVideo{width:100%;max-width:480px;max-height:300px;display:none;}
   #localVideo{width:100px;height:70px;position:fixed;bottom:140px;right:16px;display:none;border:2px solid var(--accent);z-index:310;transform:scaleX(-1);}
   .call-timer{font-size:.9rem;color:var(--green);font-variant-numeric:tabular-nums;}
+  /* Заглушка когда камера выключена */
+  #remoteAvatar{display:none;width:100%;max-width:480px;height:260px;background:var(--surface2);border-radius:12px;align-items:center;justify-content:center;flex-direction:column;gap:10px;border:1px solid var(--border);}
+  #remoteAvatar.show{display:flex;}
+  #remoteAvatarIcon{width:80px;height:80px;border-radius:50%;background:linear-gradient(135deg,var(--accent),var(--accent2));display:flex;align-items:center;justify-content:center;font-size:2rem;font-weight:bold;}
+  #remoteAvatarLabel{font-size:.8rem;color:var(--muted);}
+  #localVideoOff{display:none;width:100px;height:70px;position:fixed;bottom:140px;right:16px;background:var(--surface2);border:2px solid var(--border);border-radius:12px;z-index:310;align-items:center;justify-content:center;flex-direction:column;gap:2px;}
+  #localVideoOff.show{display:flex;}
+  #localVideoOff span{font-size:1.2rem;}
+  #localVideoOff small{font-size:.5rem;color:var(--muted);}
 
   /* Incoming call banner */
   #incomingCallBanner{display:none;position:fixed;top:16px;left:50%;transform:translateX(-50%);background:var(--surface);border:1px solid var(--accent);border-radius:14px;padding:14px 20px;z-index:400;min-width:280px;flex-direction:column;gap:10px;box-shadow:0 8px 32px rgba(0,0,0,.6);}
@@ -299,6 +309,13 @@
   <video id="remoteVideo" autoplay playsinline></video>
   <!-- Отдельный audio элемент для минимальной задержки звука -->
   <audio id="remoteAudio" autoplay playsinline style="display:none"></audio>
+  <!-- Заглушка когда камера собеседника выключена -->
+  <div id="remoteAvatar">
+    <div id="remoteAvatarIcon">?</div>
+    <div id="remoteAvatarLabel">камера выключена</div>
+  </div>
+  <!-- Заглушка своей камеры -->
+  <div id="localVideoOff"><span>📷</span><small>камера выкл</small></div>
   <div class="call-avatar" id="callAvatar">?</div>
   <div class="call-name" id="callName">—</div>
   <div class="call-status" id="callStatus">Соединение...</div>
@@ -332,7 +349,14 @@
 <div id="toast"></div>
 
 <script>
-const BROKER_URL = 'wss://broker.hivemq.com:8884/mqtt';
+// Список брокеров — пробуем по очереди если один недоступен
+const BROKER_URLS = [
+  'wss://broker.emqx.io:8084/mqtt',       // EMQX, порт 443-совместимый
+  'wss://test.mosquitto.org:8081/mqtt',    // Mosquitto
+  'wss://broker.hivemq.com:8884/mqtt',     // HiveMQ (запасной)
+];
+let brokerIndex = 0;
+let BROKER_URL = BROKER_URLS[0];
 const COLORS = ['#4f8ef7','#7c5ef7','#f7a65a','#3dd68c','#f7645a','#f7d65a','#5af7e8','#f75ab8'];
 const MAX_FILE_BYTES = 3 * 1024 * 1024;
 const CHUNK_SIZE = 60000;
@@ -721,8 +745,15 @@ function updateMembersBar(){
   const bar=$('membersBar');
   bar.innerHTML='<span style="color:var(--muted);font-size:.68rem;">Онлайн:</span>';
   Object.values(members).forEach(m=>{
-    const t=document.createElement('span');t.className='member-tag';
-    t.textContent=m.name;t.style.borderColor=m.color;t.style.color=m.color;
+    const t=document.createElement('span');t.className='member-tag'+(m.muted?' muted':'');
+    t.style.borderColor=m.muted?'var(--red)':m.color;t.style.color=m.color;
+    const nameSpan=document.createElement('span');nameSpan.textContent=m.name;
+    t.appendChild(nameSpan);
+    if(m.muted){
+      const icon=document.createElement('span');
+      icon.innerHTML='<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#f7645a" stroke-width="2.5" stroke-linecap="round"><rect x="9" y="2" width="6" height="12" rx="3"/><path d="M5 10a7 7 0 0 0 14 0"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/><line x1="3" y1="3" x2="21" y2="21" stroke="#f7645a"/></svg>';
+      t.appendChild(icon);
+    }
     bar.appendChild(t);
   });
   $('onlineCount').textContent=Object.keys(members).length+' онлайн';
@@ -1562,6 +1593,7 @@ function endCall(fromRemote=false){
   overlay.classList.remove('show','minimized');
   $('callMinimizeBtn').textContent='▼ Свернуть';
   $('localVideo').style.display='none';$('remoteVideo').style.display='none';
+  $('remoteAvatar').classList.remove('show');$('localVideoOff').classList.remove('show');
   $('localVideo').srcObject=null;$('remoteVideo').srcObject=null;
   try{$('remoteAudio').srcObject=null;$('remoteAudio').pause();}catch(e){}
   $('callTimer').textContent='';
@@ -1686,6 +1718,7 @@ function toggleMute(){
   if(!localStream)return;
   isMuted=!isMuted;
   localStream.getAudioTracks().forEach(t=>t.enabled=!isMuted);
+  publishPresence('ping_tick'); // сообщаем всем новый статус мута
   $('muteBtn').innerHTML=isMuted?'<svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="2" width="6" height="12" rx="3"/><path d="M5 10a7 7 0 0 0 14 0"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/><line x1="3" y1="3" x2="21" y2="21" stroke="#f7645a"/></svg>':'<svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="2" width="6" height="12" rx="3"/><path d="M5 10a7 7 0 0 0 14 0"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg>';
   $('muteBtn').classList.toggle('muted',isMuted);
 }
@@ -1695,6 +1728,30 @@ function toggleCam(){
   localStream.getVideoTracks().forEach(t=>t.enabled=!isCamOff);
   $('camBtn').classList.toggle('off',isCamOff);
   $('camBtn').textContent=isCamOff?'🚫':'📷';
+  // Показываем/скрываем заглушку своей камеры
+  $('localVideo').style.display=isCamOff?'none':'block';
+  $('localVideoOff').classList.toggle('show',isCamOff);
+  // Сообщаем собеседнику о состоянии камеры
+  publishCamState();
+}
+
+async function publishCamState(){
+  publishRaw('signal', await encrypt(JSON.stringify({
+    type:'cam_state', id:myId, name:myName, color:myColor, camOff:isCamOff
+  })));
+}
+
+function updateRemoteCamView(name, color, camOff){
+  if(camOff){
+    $('remoteVideo').style.display='none';
+    $('remoteAvatar').classList.add('show');
+    $('remoteAvatarIcon').textContent=getInitial(name);
+    $('remoteAvatarIcon').style.background=`linear-gradient(135deg,${color},${color}aa)`;
+    $('remoteAvatarLabel').textContent=name+' — камера выключена';
+  }else{
+    $('remoteVideo').style.display='block';
+    $('remoteAvatar').classList.remove('show');
+  }
 }
 
 let currentFacingMode='user'; // 'user' = передняя, 'environment' = задняя
@@ -1795,6 +1852,8 @@ async function handleSignal(data){
     }else{
       pendingIceCandidates.push(data.candidate);
     }
+  }else if(data.type==='cam_state'){
+    updateRemoteCamView(data.name||'Собеседник', data.color||'#4f8ef7', data.camOff);
   }else if(data.type==='hangup'||data.type==='decline'){
     pendingIceCandidates=[];
     endCall(true);
@@ -1826,7 +1885,10 @@ function connect(isFirst=false){
     onFailure:err=>{
       $('connectingOverlay').classList.remove('show');
       $('statusDot').className='offline';
-      appendSys('⚠ Ошибка подключения: '+err.errorMessage);
+      // Пробуем следующий брокер
+      brokerIndex=(brokerIndex+1)%BROKER_URLS.length;
+      BROKER_URL=BROKER_URLS[brokerIndex];
+      appendSys(`⚠ Переключаюсь на резервный сервер (${brokerIndex+1}/${BROKER_URLS.length})...`);
       scheduleReconnect();
     }
   });
@@ -1885,7 +1947,7 @@ function onConnected(){
 }
 
 async function publishPresence(type){
-  publishRaw('presence',await encrypt(JSON.stringify({type,id:myId,name:myName,color:myColor})));
+  publishRaw('presence',await encrypt(JSON.stringify({type,id:myId,name:myName,color:myColor,muted:isMuted})));
 }
 function publishRaw(channel,encB64OrPromise){
   if(encB64OrPromise instanceof Promise){
@@ -1928,10 +1990,10 @@ async function onMessage(rawMsg){
 
   if(topic===getTopic('presence')){
     const{type,id,name,color}=data;if(id===myId)return;
-    if(type==='join'){members[id]={name,color};updateMembersBar();appendSys(`→ ${name} зашёл в чат`);publishPresence('here');}
-    else if(type==='here'){if(!members[id]){members[id]={name,color};updateMembersBar();}}
+    if(type==='join'){members[id]={name,color,muted:data.muted||false};updateMembersBar();appendSys(`→ ${name} зашёл в чат`);publishPresence('here');}
+    else if(type==='here'){if(!members[id]){members[id]={name,color,muted:data.muted||false};updateMembersBar();}else{members[id].muted=data.muted||false;updateMembersBar();}}
     else if(type==='leave'){const mn=members[id]?.name||'???';delete members[id];updateMembersBar();appendSys(`← ${mn} вышел`);}
-    else if(type==='ping_tick'){members[id]={name,color};updateMembersBar();}
+    else if(type==='ping_tick'){members[id]={name,color,muted:data.muted||false};updateMembersBar();}
   }
 }
 
