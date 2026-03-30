@@ -248,6 +248,37 @@
   #settingsBtn:hover{border-color:var(--accent);color:var(--accent);transform:rotate(30deg);}
 
   /* SETTINGS / PROFILE MODAL */
+  /* PREMIUM */
+  .premium-badge{display:inline-flex;align-items:center;gap:4px;background:linear-gradient(135deg,#f7c948,#f7a020);color:#000;border-radius:8px;padding:2px 8px;font-size:.65rem;font-weight:bold;letter-spacing:.05em;}
+  .premium-section{background:linear-gradient(135deg,#1a1500,#201800);border:1px solid #f7c94840;border-radius:14px;padding:16px;margin-bottom:8px;}
+  .premium-section-title{font-size:.75rem;color:#f7c948;text-transform:uppercase;letter-spacing:.08em;margin-bottom:12px;display:flex;align-items:center;gap:6px;}
+  .theme-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;}
+  .theme-opt{border-radius:10px;padding:8px 4px;border:2px solid transparent;cursor:pointer;display:flex;flex-direction:column;align-items:center;gap:4px;font-size:.6rem;color:var(--muted);transition:all .2s;background:var(--surface2);}
+  .theme-opt:hover{border-color:#f7c94860;}
+  .theme-opt.active{border-color:#f7c948;color:#f7c948;}
+  .theme-preview{width:32px;height:32px;border-radius:8px;}
+  .avatar-upload-area{border:2px dashed var(--border);border-radius:12px;padding:16px;text-align:center;cursor:pointer;transition:border-color .2s;color:var(--muted);font-size:.8rem;}
+  .avatar-upload-area:hover{border-color:#f7c948;color:#f7c948;}
+  .avatar-preview-img{width:64px;height:64px;border-radius:50%;object-fit:cover;border:3px solid #f7c948;margin:0 auto 8px;display:block;}
+  .pm-premium-btn{background:linear-gradient(135deg,#f7c948,#f7a020);border:none;border-radius:10px;padding:12px;color:#000;font-family:var(--font);font-size:.88rem;font-weight:bold;cursor:pointer;width:100%;letter-spacing:.05em;transition:opacity .2s;}
+  .pm-premium-btn:hover{opacity:.9;}
+  .premium-modal{display:none;position:fixed;inset:0;background:rgba(0,0,0,.92);z-index:600;align-items:center;justify-content:center;padding:16px;}
+  .premium-modal.show{display:flex;}
+  .premium-modal-inner{background:var(--surface);border:1px solid #f7c94840;border-radius:20px;width:100%;max-width:400px;overflow:hidden;}
+  .premium-hero{background:linear-gradient(135deg,#1a1200,#2a1f00);padding:24px;text-align:center;}
+  .premium-hero-icon{font-size:2.5rem;margin-bottom:8px;}
+  .premium-hero-title{font-size:1.2rem;font-weight:bold;color:#f7c948;margin-bottom:4px;}
+  .premium-hero-sub{font-size:.75rem;color:#f7c94880;}
+  .premium-features{padding:16px 20px;display:flex;flex-direction:column;gap:10px;}
+  .premium-feature{display:flex;align-items:center;gap:10px;font-size:.82rem;}
+  .premium-feature-icon{font-size:1.1rem;width:28px;text-align:center;}
+  .premium-price-block{margin:0 20px;background:linear-gradient(135deg,#f7c948,#f7a020);border-radius:12px;padding:14px;text-align:center;color:#000;}
+  .premium-price{font-size:1.6rem;font-weight:bold;}
+  .premium-period{font-size:.75rem;opacity:.7;}
+  .premium-pay-section{padding:16px 20px 20px;}
+  .premium-pay-label{font-size:.72rem;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;margin-bottom:8px;}
+  .premium-close{position:absolute;top:12px;right:16px;background:none;border:none;color:var(--muted);font-size:1.2rem;cursor:pointer;}
+
   .profile-modal{display:none;position:fixed;inset:0;background:rgba(0,0,0,.85);z-index:500;align-items:center;justify-content:center;padding:16px;}
   .profile-modal.show{display:flex;}
   .profile-modal-inner{background:var(--surface);border:1px solid var(--border);border-radius:18px;width:100%;max-width:420px;max-height:90vh;display:flex;flex-direction:column;overflow:hidden;}
@@ -478,6 +509,34 @@
       <div class="pm-field">
         <label>Дата регистрации</label>
         <div class="pm-field-static" id="settingsRegDate"></div>
+      </div>
+      <div class="pm-divider"></div>
+      <!-- ПРЕМИУМ СЕКЦИЯ В НАСТРОЙКАХ -->
+      <div id="premiumSettingsSection">
+        <div id="premiumActiveBlock" style="display:none;background:linear-gradient(135deg,#1a1500,#201800);border:1px solid #f7c94840;border-radius:14px;padding:14px;margin-bottom:12px;">
+          <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
+            <span style="color:#f7c948;font-size:.85rem;font-weight:bold;">👑 Премиум активен</span>
+            <span class="premium-badge">PREMIUM</span>
+          </div>
+          <!-- ТЕМЫ -->
+          <div class="premium-section-title">🎨 Тема оформления</div>
+          <div class="theme-grid" id="themeGrid"></div>
+          <div style="margin-top:12px;">
+            <!-- КАСТОМНЫЙ АВАТАР -->
+            <div class="premium-section-title" style="margin-top:12px;">🖼 Свой аватар</div>
+            <div class="avatar-upload-area" onclick="document.getElementById('avatarFileInput').click()">
+              <div id="avatarPreviewContainer">
+                <div style="font-size:1.5rem;margin-bottom:4px;">📷</div>
+                <div>Нажми чтобы загрузить фото</div>
+                <div style="font-size:.65rem;margin-top:4px;opacity:.6;">JPG, PNG до 1 МБ</div>
+              </div>
+            </div>
+            <input type="file" id="avatarFileInput" accept="image/*" style="display:none" onchange="uploadCustomAvatar(event)">
+          </div>
+        </div>
+        <div id="premiumBuyBlock">
+          <button class="pm-premium-btn" onclick="openPremiumModal()">👑 Получить Премиум — 99 ₽/мес</button>
+        </div>
       </div>
       <div class="pm-divider"></div>
       <button class="pm-save" onclick="saveSettings()">Сохранить изменения</button>
@@ -2328,9 +2387,9 @@ async function doLogin(){
 function enterWithProfile(profile){
   myName=profile.name;
   myColor=profile.color||getColor(profile.name);
-  myAvatar=profile.avatar||'';
+  myAvatar=profile.customAvatar||profile.avatar||'';
   myUid=profile.uid||'';
-  $('nameInput').value=profile.name;
+  checkPremiumStatus(myUid);
   // Fill profile bar
   const av=$('loginBarAv');
   av.textContent=profile.avatar||profile.name.charAt(0).toUpperCase();
@@ -2550,6 +2609,12 @@ function openSettings(){
     if(sel.options[i].value === (myProfile.country||'')){ sel.selectedIndex=i; break; }
   }
   $('settingsModal').classList.add('show');
+  updatePremiumUI();
+  // Обновляем превью кастомного аватара если есть
+  if(myProfile.customAvatar){
+    const container = $('avatarPreviewContainer');
+    if(container) container.innerHTML = `<img src="${myProfile.customAvatar}" class="avatar-preview-img"><div style="font-size:.72rem;color:var(--green);">✓ Кастомный аватар</div>`;
+  }
 }
 
 function closeSettings(){
@@ -2614,12 +2679,197 @@ window.onload=()=>{
   checkAuth();
   renderSavedRooms();
   updateActionBtn();
-  // Скрываем кнопку удаления при клике на пустое место
+  initThemeGrid();
   document.addEventListener('click',e=>{
     if(!e.target.closest('.msg'))document.querySelectorAll('.msg.show-del').forEach(m=>m.classList.remove('show-del'));
   });
 };
 window.addEventListener('beforeunload',()=>{if(client&&client.isConnected())publishPresence('leave');});
+
+// ===== PREMIUM =====
+const YOOMONEY_WALLET = '4100119327557391'; // ← замени на свой номер кошелька
+const YOOMONEY_LABEL = 'svoychat_premium';
+
+const THEMES = [
+  {id:'dark',    name:'Тёмная',   bg:'#0d0f14', surface:'#161a22', accent:'#4f8ef7', accent2:'#7c5ef7'},
+  {id:'midnight',name:'Полночь',  bg:'#060810', surface:'#0e1220', accent:'#5b8dee', accent2:'#8b6cf7'},
+  {id:'forest',  name:'Лес',      bg:'#0a0f0a', surface:'#121a12', accent:'#3dd68c', accent2:'#2ab87a'},
+  {id:'crimson', name:'Рубин',    bg:'#0f0a0a', surface:'#1a1010', accent:'#f7645a', accent2:'#f7a020'},
+  {id:'ocean',   name:'Океан',    bg:'#090e14', surface:'#101822', accent:'#5af7e8', accent2:'#4f8ef7'},
+  {id:'purple',  name:'Фиолет',   bg:'#0c0a14', surface:'#16122a', accent:'#a07cf7', accent2:'#7c5ef7'},
+  {id:'gold',    name:'Золото',   bg:'#0f0e08', surface:'#1a1a10', accent:'#f7c948', accent2:'#f7a020'},
+  {id:'mono',    name:'Моно',     bg:'#0a0a0a', surface:'#141414', accent:'#e8ecf4', accent2:'#a0a8b8'},
+];
+
+let currentTheme = localStorage.getItem('svoychat_theme') || 'dark';
+let isPremium = false;
+
+function applyTheme(id){
+  const t = THEMES.find(x=>x.id===id) || THEMES[0];
+  const r = document.documentElement.style;
+  r.setProperty('--bg', t.bg);
+  r.setProperty('--surface', t.surface);
+  r.setProperty('--accent', t.accent);
+  r.setProperty('--accent2', t.accent2);
+  currentTheme = id;
+}
+
+function initThemeGrid(){
+  const grid = $('themeGrid');
+  if(!grid) return;
+  grid.innerHTML = '';
+  THEMES.forEach(t=>{
+    const div = document.createElement('div');
+    div.className = 'theme-opt' + (currentTheme===t.id?' active':'');
+    div.innerHTML = `<div class="theme-preview" style="background:linear-gradient(135deg,${t.accent},${t.accent2});"></div><span>${t.name}</span>`;
+    div.onclick = ()=>{
+      if(!isPremium){ showToast('👑 Нужен Премиум'); openPremiumModal(); return; }
+      applyTheme(t.id);
+      localStorage.setItem('svoychat_theme', t.id);
+      document.querySelectorAll('.theme-opt').forEach(el=>el.classList.remove('active'));
+      div.classList.add('active');
+    };
+    grid.appendChild(div);
+  });
+  // Применяем сохранённую тему
+  applyTheme(currentTheme);
+}
+
+async function checkPremiumStatus(uid){
+  if(!uid) return;
+  try{
+    const doc = await fbDb.collection('premium').doc(uid).get();
+    if(doc.exists){
+      const d = doc.data();
+      const expiry = d.expiry ? d.expiry.toDate() : null;
+      if(expiry && expiry > new Date()){
+        isPremium = true;
+        updatePremiumUI();
+      }
+    }
+  }catch(e){}
+}
+
+function updatePremiumUI(){
+  if(isPremium){
+    $('premiumActiveBlock').style.display = 'block';
+    $('premiumBuyBlock').style.display = 'none';
+  } else {
+    $('premiumActiveBlock').style.display = 'none';
+    $('premiumBuyBlock').style.display = 'block';
+  }
+}
+
+function openPremiumModal(){
+  $('premiumModal').classList.add('show');
+}
+function closePremiumModal(){
+  $('premiumModal').classList.remove('show');
+  $('transactionBlock').style.display='none';
+}
+
+function openYooMoney(){
+  const amount = 99;
+  const uid = myUid || 'unknown';
+  const comment = encodeURIComponent(`Свой чат Премиум uid:${uid}`);
+  const url = `https://yoomoney.ru/transfer/quickpay?receiver=${YOOMONEY_WALLET}&quickpay-form=button&targets=${comment}&sum=${amount}&label=${YOOMONEY_LABEL}_${uid}&comment=${comment}`;
+  window.open(url, '_blank');
+}
+
+function showTransactionInput(){
+  $('transactionBlock').style.display='block';
+  $('transactionInput').focus();
+}
+
+async function submitTransaction(){
+  const tx = $('transactionInput').value.trim();
+  if(!tx){ showToast('Введи номер транзакции'); return; }
+  if(!myUid){ showToast('Сначала войди в аккаунт'); return; }
+  try{
+    await fbDb.collection('premium_requests').doc(myUid).set({
+      uid: myUid,
+      email: myProfile?.email || '',
+      transaction: tx,
+      ts: firebase.firestore.FieldValue.serverTimestamp(),
+      status: 'pending'
+    });
+    showToast('✅ Заявка отправлена! Активируем в течение нескольких часов.', 4000);
+    closePremiumModal();
+  }catch(e){
+    showToast('Ошибка: '+e.message);
+  }
+}
+
+async function uploadCustomAvatar(event){
+  if(!isPremium){ showToast('👑 Нужен Премиум'); return; }
+  const file = event.target.files[0];
+  if(!file) return;
+  if(file.size > 1024*1024){ showToast('Файл слишком большой (макс. 1 МБ)'); return; }
+  const reader = new FileReader();
+  reader.onload = async (e)=>{
+    const dataUrl = e.target.result;
+    // Сохраняем в Firestore как base64 (только миниатюра)
+    try{
+      const img = new Image();
+      img.src = dataUrl;
+      await new Promise(r=>img.onload=r);
+      const canvas = document.createElement('canvas');
+      const size = Math.min(img.width, img.height, 200);
+      canvas.width = size; canvas.height = size;
+      const ctx = canvas.getContext('2d');
+      ctx.drawImage(img, (img.width-size)/2, (img.height-size)/2, size, size, 0, 0, size, size);
+      const mini = canvas.toDataURL('image/jpeg', 0.7);
+      // Сохраняем
+      await fbDb.collection('users').doc(myUid).update({customAvatar: mini});
+      myProfile.customAvatar = mini;
+      localStorage.setItem('svoychat_profile', JSON.stringify(myProfile));
+      myAvatar = mini;
+      // Обновляем превью в настройках
+      const container = $('avatarPreviewContainer');
+      container.innerHTML = `<img src="${mini}" class="avatar-preview-img"><div style="font-size:.72rem;color:var(--green);">✓ Аватар обновлён</div>`;
+      // Обновляем аватар в хедере
+      const headerAv = $('headerAvatar');
+      if(headerAv){ headerAv.style.backgroundImage=`url(${mini})`; headerAv.style.backgroundSize='cover'; headerAv.textContent=''; }
+      showToast('Аватар обновлён ✓', 2000);
+    }catch(err){
+      showToast('Ошибка загрузки: '+err.message);
+    }
+  };
+  reader.readAsDataURL(file);
+}
 </script>
+
+<!-- PREMIUM MODAL -->
+<div id="premiumModal" class="premium-modal">
+  <div class="premium-modal-inner" style="position:relative;">
+    <button class="premium-close" onclick="closePremiumModal()">✕</button>
+    <div class="premium-hero">
+      <div class="premium-hero-icon">👑</div>
+      <div class="premium-hero-title">Свой чат Премиум</div>
+      <div class="premium-hero-sub">Разблокируй все возможности</div>
+    </div>
+    <div class="premium-features">
+      <div class="premium-feature"><span class="premium-feature-icon">🎨</span><span>Темы оформления — 8 стилей</span></div>
+      <div class="premium-feature"><span class="premium-feature-icon">🖼</span><span>Свой аватар — загрузи любое фото</span></div>
+      <div class="premium-feature"><span class="premium-feature-icon">⚡</span><span>Поддержка разработки проекта</span></div>
+    </div>
+    <div class="premium-price-block">
+      <div class="premium-price">99 ₽</div>
+      <div class="premium-period">в месяц</div>
+    </div>
+    <div class="premium-pay-section">
+      <div class="premium-pay-label">Способ оплаты</div>
+      <button class="pm-premium-btn" onclick="openYooMoney()" style="margin-bottom:10px;">💳 Оплатить через YooMoney</button>
+      <div style="font-size:.72rem;color:var(--muted);text-align:center;line-height:1.6;">
+        После оплаты нажми <b style="color:var(--text);">«Я оплатил»</b> и введи номер транзакции — активируем в течение нескольких часов.
+      </div>
+      <button onclick="showTransactionInput()" style="margin-top:10px;background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:10px;color:var(--text);font-family:var(--font);font-size:.82rem;cursor:pointer;width:100%;">✅ Я оплатил</button>
+      <div id="transactionBlock" style="display:none;margin-top:10px;">
+        <input id="transactionInput" placeholder="Номер транзакции из YooMoney" style="width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:10px 12px;color:var(--text);font-family:var(--font);font-size:.85rem;outline:none;margin-bottom:8px;">
+        <button class="pm-premium-btn" onclick="submitTransaction()">Отправить →</button>
+      </div>
+    </div>
+  </div>
+</div>
 </body>
 </html>
