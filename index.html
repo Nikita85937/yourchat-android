@@ -444,15 +444,16 @@
     </div>
     <div class="header-right">
       <span id="onlineCount"></span>
-      <button id="settingsBtn" onclick="openSettings()" title="Настройки">⚙️</button>
-      <button id="leaveBtn" onclick="leaveChat()">Выйти</button>
     </div>
   </div>
   <div id="membersBar"><span style="color:var(--muted);font-size:.68rem;">Онлайн:</span></div>
-  <!-- Панель кнопок звонка -->
+  <!-- Панель кнопок звонка + настройки + выйти -->
   <div id="callBar" style="background:var(--surface2);border-bottom:1px solid var(--border);padding:5px 12px;display:flex;gap:6px;align-items:center;flex-shrink:0;position:relative;">
     <button class="call-btn" id="voiceCallBtn" onclick="showCallMenu(event,'voice')" title="Голосовой звонок">📞 Голос</button>
     <button class="call-btn video" id="videoCallBtn" onclick="showCallMenu(event,'video')" title="Видеозвонок">📹 Видео</button>
+    <div style="flex:1;"></div>
+    <button id="settingsBtn" onclick="openSettings()" title="Настройки" style="background:none;border:1px solid var(--border);border-radius:8px;color:var(--muted);font-family:var(--font);font-size:.85rem;padding:4px 7px;cursor:pointer;transition:color .2s,border-color .2s;" onmouseover="this.style.color='var(--accent)';this.style.borderColor='var(--accent)'" onmouseout="this.style.color='var(--muted)';this.style.borderColor='var(--border)'">⚙️</button>
+    <button id="leaveBtn" onclick="leaveChat()" style="background:none;border:1px solid var(--border);border-radius:8px;color:var(--muted);font-family:var(--font);font-size:.65rem;padding:4px 7px;cursor:pointer;transition:color .2s,border-color .2s;white-space:nowrap;" onmouseover="this.style.color='var(--red)';this.style.borderColor='var(--red)'" onmouseout="this.style.color='var(--muted)';this.style.borderColor='var(--border)'">Выйти</button>
     <div id="callMenu" style="display:none;position:absolute;top:100%;left:12px;z-index:9999;background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:8px;flex-direction:column;gap:6px;box-shadow:0 4px 20px rgba(0,0,0,.5);min-width:210px;">
       <div style="font-size:.68rem;color:var(--muted);padding:0 4px 4px;">Выбери тип звонка:</div>
       <button class="call-menu-item" onclick="callMenuAction('group')">👥 Групповой (все в комнате)</button>
