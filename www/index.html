@@ -418,18 +418,18 @@
 <!-- Call overlay -->
 <div id="callOverlay">
   <button id="callMinimizeBtn" onclick="toggleMinimizeCall()">▼ Свернуть</button>
-  <video id="remoteVideo" autoplay playsinline></video>
-  <!-- Отдельный audio элемент для минимальной задержки звука -->
+  <!-- Участники группового звонка -->
+  <div id="callParticipants" style="display:flex;flex-wrap:wrap;gap:8px;justify-content:center;width:100%;max-height:320px;overflow-y:auto;padding:4px 0;"></div>
+  <!-- Видео для обратной совместимости (1:1) -->
+  <video id="remoteVideo" autoplay playsinline style="display:none;"></video>
   <audio id="remoteAudio" autoplay playsinline style="display:none"></audio>
-  <!-- Заглушка когда камера собеседника выключена -->
-  <div id="remoteAvatar">
+  <div id="remoteAvatar" style="display:none;">
     <div id="remoteAvatarIcon">?</div>
     <div id="remoteAvatarLabel">камера выключена</div>
   </div>
-  <!-- Заглушка своей камеры -->
   <div id="localVideoOff"><span>📷</span><small>камера выкл</small></div>
-  <div class="call-avatar" id="callAvatar">?</div>
-  <div class="call-name" id="callName">—</div>
+  <div class="call-avatar" id="callAvatar" style="display:none;">?</div>
+  <div class="call-name" id="callName">Групповой звонок</div>
   <div class="call-status" id="callStatus">Соединение...</div>
   <div style="font-size:.68rem;color:var(--green);opacity:.7;letter-spacing:.04em;" id="callEncBadge"></div>
   <div class="call-timer" id="callTimer"></div>
@@ -437,14 +437,24 @@
   <div id="callQualityDetails" style="font-size:.68rem;color:var(--muted);opacity:.7;"></div>
   <div id="callE2e" style="font-size:.68rem;color:#3dd68c;opacity:.0;transition:opacity .5s;">🔒 E2E шифрование</div>
   <div class="call-controls">
+    <button class="call-ctrl-btn" id="inviteCallBtn" onclick="inviteToCall()" title="Пригласить в звонок" style="background:var(--surface2);border:1px solid var(--border);">➕</button>
     <button class="call-ctrl-btn btn-pip" id="pipBtn" onclick="togglePiP()" title="Картинка в картинке" style="background:var(--surface2);border:1px solid var(--border);display:none;">⧉</button>
     <button class="call-ctrl-btn btn-mute" id="muteBtn" onclick="toggleMute()" title="Микрофон"><svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="2" width="6" height="12" rx="3"/><path d="M5 10a7 7 0 0 0 14 0"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg></button>
     <button class="call-ctrl-btn btn-hangup" onclick="endCall()">📵</button>
     <button class="call-ctrl-btn btn-cam" id="camBtn" onclick="toggleCam()" title="Камера">📷</button>
-    <button class="call-ctrl-btn btn-cam" id="flipBtn" onclick="flipCamera()" title="Переключить камеру">🔄</button>
+    <button class="call-ctrl-btn btn-cam" id="flipBtn" onclick="flipCamera()" title="Переключить камеру"><svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 7h-3a2 2 0 0 1-1.5-.67L14 5H10L8.5 6.33A2 2 0 0 1 7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2z"/><path d="M15.4 13a3.5 3.5 0 1 1-1.4-2.65"/><polyline points="15 10 15 13 18 13"/></svg></button>
   </div>
 </div>
 <video id="localVideo" autoplay playsinline muted></video>
+
+<!-- Invite to call modal -->
+<div id="inviteCallModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.85);z-index:700;align-items:center;justify-content:center;padding:16px;">
+  <div style="background:var(--surface);border:1px solid var(--border);border-radius:16px;width:100%;max-width:340px;padding:20px;">
+    <div style="font-size:1rem;font-weight:bold;margin-bottom:12px;">➕ Пригласить в звонок</div>
+    <div id="inviteCallList" style="display:flex;flex-direction:column;gap:8px;max-height:250px;overflow-y:auto;"></div>
+    <button onclick="closeInviteModal()" style="margin-top:14px;width:100%;padding:10px;background:var(--surface2);border:1px solid var(--border);border-radius:10px;color:var(--text);cursor:pointer;font-family:var(--font);">Закрыть</button>
+  </div>
+</div>
 
 <!-- Incoming call banner -->
 <div id="incomingCallBanner">
@@ -595,11 +605,16 @@ let lastMqttActivity=0; // timestamp последней активности MQT
 let isReconnecting=false;
 let historyLoaded=false; // чтобы не дублировать историю при reconnect
 
-// WebRTC
-let peerConn=null, localStream=null, callTimerInt=null, callStartTime=null;
+// WebRTC — Групповой звонок (Mesh)
+let peerConns={}; // uid -> RTCPeerConnection
+let localStream=null, callTimerInt=null, callStartTime=null;
 let isVideoCall=false, isMuted=false, isCamOff=false;
 let pendingOffer=null, pendingCallerId=null, pendingCallerName='';
-let callEnding=false; // защита от повторного вызова endCall
+let callEnding=false;
+let inCall=false; // идёт ли звонок
+let callParticipantNames={}; // uid -> name
+// Обратная совместимость
+Object.defineProperty(window,'peerConn',{get:()=>Object.values(peerConns)[0]||null});
 
 // ===== WAKE LOCK (экран не гаснет во время звонка) =====
 let wakeLock=null;
@@ -1545,244 +1560,209 @@ const ICE_SERVERS={
 
 async function startCall(withVideo=false){
   if(Object.keys(members).length===0){showToast('Никого нет в комнате');return;}
+  if(inCall){showToast('Звонок уже идёт');return;}
   isVideoCall=withVideo;
   try{
     localStream=await navigator.mediaDevices.getUserMedia({
-      audio:{
-        echoCancellation:true,
-        noiseSuppression:true,
-        autoGainControl:true,
-        // Минимальная задержка — отключаем буферизацию браузера
-        latency:0,
-        channelCount:1,        // моно — вдвое меньше данных
-        sampleRate:16000       // 16кГц хватает для речи, меньше буфер
-      },
+      audio:{echoCancellation:true,noiseSuppression:true,autoGainControl:true,latency:0,channelCount:1,sampleRate:16000},
       video:withVideo
     });
   }catch(e){
-    // Fallback без lowlatency constraints если браузер не поддерживает
-    try{
-      localStream=await navigator.mediaDevices.getUserMedia({audio:true,video:withVideo});
-    }catch(e2){showToast('Нет доступа к микрофону/камере');return;}
+    try{localStream=await navigator.mediaDevices.getUserMedia({audio:true,video:withVideo});}
+    catch(e2){showToast('Нет доступа к микрофону/камере');return;}
   }
 
-  if(withVideo){
-    $('localVideo').srcObject=localStream;$('localVideo').style.display='block';
-    $('remoteVideo').style.display='block';
-  }
+  if(withVideo){$('localVideo').srcObject=localStream;$('localVideo').style.display='block';}
   updatePipBtn();
-
   await requestWakeLock();
   startBackgroundAudio();
-  setupPeerConnection();
+  inCall=true;
+  callParticipantNames[myId]=myName;
+  updateCallParticipantsUI();
 
-  const offer=await peerConn.createOffer({offerToReceiveAudio:true,offerToReceiveVideo:withVideo});
-  // Патчим SDP — минимальный ptime и максимальный битрейт Opus для низкой задержки
-  const patchedOffer={...offer,sdp:patchSdpForLowLatency(offer.sdp)};
-  await peerConn.setLocalDescription(patchedOffer);
-  // 🔒 E2E шифрование медиапотока
-  applyCallEncryption(peerConn, callMediaKey);
-  publishRaw('signal',await encrypt(JSON.stringify({type:'offer',id:myId,name:myName,color:myColor,offer:peerConn.localDescription,withVideo})));
+  // Шлём offer всем участникам комнаты
+  const targets=Object.keys(members).filter(uid=>uid!==myId);
+  for(const targetUid of targets){
+    await createOfferFor(targetUid, withVideo);
+  }
 
-  showCallOverlay(myName,withVideo?'📹 Видеозвонок...':'📞 Звоним...','calling');
+  showCallOverlay(myName, withVideo?'📹 Видеозвонок...':'📞 Звоним...','calling');
   appendSys(`📞 Ты начал ${withVideo?'видео':'голосовой'} звонок`);
+}
+
+async function createOfferFor(targetUid, withVideo){
+  const pc = createPeerConn(targetUid);
+  const offer=await pc.createOffer({offerToReceiveAudio:true,offerToReceiveVideo:!!withVideo});
+  const patched={...offer,sdp:patchSdpForLowLatency(offer.sdp)};
+  await pc.setLocalDescription(patched);
+  applyCallEncryption(pc, callMediaKey);
+  publishRaw('signal',await encrypt(JSON.stringify({
+    type:'offer',id:myId,targetUid,name:myName,color:myColor,
+    offer:pc.localDescription,withVideo:!!withVideo
+  })));
+}
+
+function createPeerConn(remoteUid){
+  if(peerConns[remoteUid]){
+    try{peerConns[remoteUid].close();}catch(e){}
+  }
+  const pc=new RTCPeerConnection(ICE_SERVERS);
+  peerConns[remoteUid]=pc;
+  if(localStream)localStream.getTracks().forEach(t=>pc.addTrack(t,localStream));
+
+  pc.ontrack=e=>{
+    if(e.streams&&e.streams[0]){
+      attachRemoteStream(remoteUid, e.streams[0]);
+    }
+  };
+
+  pc.onicecandidate=async e=>{
+    if(e.candidate){
+      publishRaw('signal',await encrypt(JSON.stringify({
+        type:'ice',id:myId,targetUid:remoteUid,candidate:e.candidate
+      })));
+    }
+  };
+
+  pc.onconnectionstatechange=()=>{
+    const s=pc.connectionState;
+    if(s==='connected'){
+      startCallTimer();
+      updateQualityIndicator('good');
+      startCallEncryption(pc, myPass, myRoom).then(ok=>{
+        if(ok){const b=$('callE2e');if(b)b.style.opacity='1';}
+      });
+    }
+    if(s==='disconnected'||s==='failed'){
+      updateQualityIndicator('poor');
+      setTimeout(()=>{
+        if(pc.connectionState==='disconnected'||pc.connectionState==='failed'){
+          try{pc.restartIce();}catch(e){}
+        }
+      },5000);
+    }
+    if(s==='closed'){
+      removePeerConn(remoteUid);
+    }
+  };
+
+  // Pending ICE per peer
+  if(!pc._pendingIce)pc._pendingIce=[];
+  return pc;
+}
+
+function removePeerConn(uid){
+  delete peerConns[uid];
+  delete callParticipantNames[uid];
+  // Убрать аудио/видео элемент
+  const el=document.getElementById('callPeer_'+uid);
+  if(el)el.remove();
+  updateCallParticipantsUI();
+  if(Object.keys(peerConns).length===0 && inCall){
+    endCall(true);
+  }
+}
+
+function attachRemoteStream(uid, stream){
+  let container=document.getElementById('callPeer_'+uid);
+  if(!container){
+    container=document.createElement('div');
+    container.id='callPeer_'+uid;
+    container.style.cssText='display:flex;flex-direction:column;align-items:center;gap:4px;background:var(--surface2);border-radius:12px;padding:8px;min-width:80px;';
+    $('callParticipants').appendChild(container);
+  }
+  container.innerHTML='';
+  const name=callParticipantNames[uid]||'Участник';
+  if(isVideoCall){
+    const vid=document.createElement('video');
+    vid.autoplay=true;vid.playsInline=true;
+    vid.style.cssText='width:120px;height:90px;border-radius:8px;object-fit:cover;background:#000;';
+    vid.srcObject=stream;
+    container.appendChild(vid);
+  }else{
+    const aud=document.createElement('audio');
+    aud.autoplay=true;aud.srcObject=stream;
+    aud.play().catch(()=>{});
+    container.appendChild(aud);
+    const av=document.createElement('div');
+    av.style.cssText='width:52px;height:52px;border-radius:50%;background:var(--accent);display:flex;align-items:center;justify-content:center;font-size:1.4rem;font-weight:bold;color:#fff;';
+    av.textContent=getInitial(name);
+    container.appendChild(av);
+  }
+  const label=document.createElement('div');
+  label.style.cssText='font-size:.7rem;color:var(--muted);';
+  label.textContent=name;
+  container.appendChild(label);
+}
+
+function updateCallParticipantsUI(){
+  // Обновляем заголовок
+  const count=Object.keys(peerConns).length+1;
+  $('callName').textContent=count>1?`Групповой звонок (${count})`:myName;
+  // Добавить/обновить свой блок
+  let myBlock=document.getElementById('callPeer_me');
+  if(!myBlock){
+    myBlock=document.createElement('div');
+    myBlock.id='callPeer_me';
+    myBlock.style.cssText='display:flex;flex-direction:column;align-items:center;gap:4px;background:var(--surface2);border:1px solid var(--accent);border-radius:12px;padding:8px;min-width:80px;';
+    $('callParticipants').prepend(myBlock);
+  }
+  myBlock.innerHTML='';
+  if(isVideoCall && localStream){
+    const vid=document.createElement('video');
+    vid.autoplay=true;vid.playsInline=true;vid.muted=true;
+    vid.style.cssText='width:120px;height:90px;border-radius:8px;object-fit:cover;background:#000;transform:scaleX(-1);';
+    vid.srcObject=localStream;
+    myBlock.appendChild(vid);
+  }else{
+    const av=document.createElement('div');
+    av.style.cssText='width:52px;height:52px;border-radius:50%;background:var(--accent);display:flex;align-items:center;justify-content:center;font-size:1.4rem;font-weight:bold;color:#fff;';
+    av.textContent=getInitial(myName);
+    myBlock.appendChild(av);
+  }
+  const label=document.createElement('div');
+  label.style.cssText='font-size:.7rem;color:var(--accent);';
+  label.textContent='Ты';
+  myBlock.appendChild(label);
 }
 
 // ===== CALL QUALITY & AUTO-REDIAL STATE =====
 let callQualityInt=null;
-let disconnectWatchdog=null; // таймер — если disconnected слишком долго → пробуем redial
+let disconnectWatchdog=null;
 let autoRedialTimer=null;
 let autoRedialCount=0;
 const MAX_AUTO_REDIAL=3;
-const DISCONNECT_PATIENCE_MS=30000; // 30 сек ждём восстановления до redial
+const DISCONNECT_PATIENCE_MS=30000;
 
 function setupPeerConnection(){
-  if(peerConn){
-    try{
-      peerConn.onconnectionstatechange=null;
-      peerConn.oniceconnectionstatechange=null;
-      peerConn.ontrack=null;
-      peerConn.onicecandidate=null;
-      peerConn.close();
-    }catch(e){}
-  }
-  peerConn=new RTCPeerConnection(ICE_SERVERS);
-  if(localStream)localStream.getTracks().forEach(t=>peerConn.addTrack(t,localStream));
-
-  // Приоритет Opus на отправке — устанавливаем до создания offer
-  try{
-    peerConn.getTransceivers().forEach(tr=>{
-      if(tr.sender&&tr.sender.track&&tr.sender.track.kind==='audio'){
-        const params=tr.sender.getParameters();
-        if(params.encodings&&params.encodings.length){
-          params.encodings[0].priority='high';
-          params.encodings[0].networkPriority='high';
-          tr.sender.setParameters(params).catch(()=>{});
-        }
-        // Prefer Opus
-        if(tr.setCodecPreferences){
-          const caps=RTCRtpSender.getCapabilities('audio');
-          if(caps){
-            const opus=caps.codecs.filter(c=>c.mimeType.toLowerCase()==='audio/opus');
-            const rest=caps.codecs.filter(c=>c.mimeType.toLowerCase()!=='audio/opus');
-            if(opus.length)tr.setCodecPreferences([...opus,...rest]);
-          }
-        }
-      }
-    });
-  }catch(e){}
-
-  peerConn.ontrack=e=>{
-    if(e.streams&&e.streams[0]){
-      const stream=e.streams[0];
-      if(isVideoCall){
-        $('remoteVideo').srcObject=stream;
-      }else{
-        // Голосовой звонок — аудио в отдельный <audio> элемент, это даёт меньше задержку
-        $('remoteAudio').srcObject=stream;
-        $('remoteAudio').play().catch(()=>{});
-      }
-      // Минимизируем буфер воспроизведения
-      try{$('remoteVideo').latencyHint='interactive';}catch(ex){}
-    }
-  };
-
-  peerConn.onicecandidate=async e=>{
-    if(e.candidate){
-      publishRaw('signal',await encrypt(JSON.stringify({type:'ice',id:myId,name:myName,candidate:e.candidate})));
-    }
-  };
-
-  let iceRestartAttempts=0;
-
-  peerConn.onconnectionstatechange=()=>{
-    const s=peerConn.connectionState;
-
-    if(s==='connected'){
-      iceRestartAttempts=0;autoRedialCount=0;
-      clearTimeout(disconnectWatchdog);disconnectWatchdog=null;
-      clearTimeout(autoRedialTimer);autoRedialTimer=null;
-      startCallTimer();
-      startQualityMonitor();
-      updateQualityIndicator('good');
-      // Показываем статус шифрования
-      const encBadge=$('callEncBadge');
-      if(encBadge){
-        const hasE2E=typeof RTCRtpSender!=='undefined'&&'createEncodedStreams' in RTCRtpSender.prototype;
-        encBadge.textContent=hasE2E?'🔒 E2E AES-256-GCM':'🔐 DTLS';
-      }
-      // Запускаем E2E шифрование медиапотока
-      startCallEncryption(peerConn, myPass, myRoom).then(ok=>{
-        if(ok) {
-          const e2eBadge=$('callE2e'); if(e2eBadge) e2eBadge.style.opacity='1';
-          setCallStatus('🔒 Зашифрован (AES-256)'); setTimeout(()=>{ if(peerConn&&peerConn.connectionState==='connected') setCallStatus(isVideoCall?'📹 Видеозвонок':'📞 Голосовой звонок'); },2500);
-        }
-      });
-      // Устанавливаем максимальный приоритет битрейта после соединения
-      try{
-        peerConn.getSenders().forEach(sender=>{
-          if(sender.track&&sender.track.kind==='audio'){
-            const p=sender.getParameters();
-            if(p.encodings&&p.encodings.length){
-              p.encodings[0].priority='high';
-              p.encodings[0].networkPriority='high';
-              sender.setParameters(p).catch(()=>{});
-            }
-          }
-        });
-      }catch(e){}
-    }
-
-    if(s==='disconnected'){
-      updateQualityIndicator('poor');
-      setCallStatus('⚠ Восстановление связи...');
-      clearTimeout(disconnectWatchdog);
-      disconnectWatchdog=setTimeout(()=>{
-        if(!peerConn||peerConn.connectionState!=='disconnected')return;
-        iceRestartAttempts++;
-        setCallStatus(`🔄 Переподключение (${iceRestartAttempts})...`);
-        try{peerConn.restartIce();}catch(e){triggerAutoRedial();}
-      },DISCONNECT_PATIENCE_MS);
-    }
-
-    if(s==='failed'){
-      updateQualityIndicator('bad');
-      clearTimeout(disconnectWatchdog);disconnectWatchdog=null;
-      iceRestartAttempts++;
-      if(iceRestartAttempts<=3){
-        setCallStatus(`🔄 ICE restart (${iceRestartAttempts}/3)...`);
-        try{peerConn.restartIce();}catch(e){triggerAutoRedial();}
-      }else{
-        triggerAutoRedial();
-      }
-    }
-
-    if(s==='closed'){
-      stopQualityMonitor();
-    }
-  };
-
-  peerConn.oniceconnectionstatechange=()=>{
-    const s=peerConn.iceConnectionState;
-    if(s==='checking'||s==='new')updateQualityIndicator('checking');
-    if(s==='connected'||s==='completed')updateQualityIndicator('good');
-    if(s==='disconnected')updateQualityIndicator('poor');
-    if(s==='failed'){try{peerConn.restartIce();}catch(e){}}
-  };
-}
-
-// ===== АВТО-ПЕРЕЗВОН =====
-function triggerAutoRedial(){
-  if(autoRedialCount>=MAX_AUTO_REDIAL){
-    appendSys('📵 Не удалось восстановить звонок после нескольких попыток.');
-    endCall(false);
-    return;
-  }
-  autoRedialCount++;
-  const delay=4000*autoRedialCount; // 4, 8, 12 сек
-  setCallStatus(`📞 Автоперезвон через ${delay/1000} сек... (${autoRedialCount}/${MAX_AUTO_REDIAL})`);
-  clearTimeout(autoRedialTimer);
-  autoRedialTimer=setTimeout(async()=>{
-    if(!localStream||callEnding)return;
-    try{
-      // Пересоздаём peer connection и шлём новый offer
-      setupPeerConnection();
-      const offer=await peerConn.createOffer({offerToReceiveAudio:true,offerToReceiveVideo:isVideoCall,iceRestart:true});
-      await peerConn.setLocalDescription(offer);
-      publishRaw('signal',await encrypt(JSON.stringify({
-        type:'offer_restart',id:myId,name:myName,color:myColor,
-        offer:peerConn.localDescription,withVideo:isVideoCall
-      })));
-      setCallStatus('📞 Переустанавливаем соединение...');
-    }catch(e){endCall(false);}
-  },delay);
+  // Обратная совместимость — создаём для первого участника
+  const targets=Object.keys(members).filter(uid=>uid!==myId);
+  if(targets.length>0)createPeerConn(targets[0]);
 }
 
 // ===== ИНДИКАТОР КАЧЕСТВА СВЯЗИ =====
 function updateQualityIndicator(level){
-  const el=$('callQuality');
-  if(!el)return;
+  const el=$('callQuality');if(!el)return;
   const map={checking:'🔄 Подключение',good:'🟢 Связь хорошая',poor:'🟡 Слабый сигнал',bad:'🔴 Нет связи'};
   el.textContent=map[level]||'';
 }
-
 function startQualityMonitor(){
   stopQualityMonitor();
   callQualityInt=setInterval(async()=>{
-    if(!peerConn||peerConn.connectionState!=='connected')return;
+    const pcs=Object.values(peerConns);
+    if(!pcs.length)return;
     try{
-      const stats=await peerConn.getStats();
-      let packetsLost=0,packetsSent=0,jitter=0,rtt=0;
+      const stats=await pcs[0].getStats();
+      let packetsLost=0,packetsSent=0,rtt=0;
       stats.forEach(r=>{
         if(r.type==='outbound-rtp'&&r.kind==='audio'){packetsSent+=r.packetsSent||0;packetsLost+=(r.packetsLost||0);}
-        if(r.type==='remote-inbound-rtp'&&r.kind==='audio'){rtt=r.roundTripTime||0;jitter=r.jitter||0;}
+        if(r.type==='remote-inbound-rtp'&&r.kind==='audio'){rtt=r.roundTripTime||0;}
       });
       const lossRate=packetsSent>0?packetsLost/packetsSent:0;
       let level='good';
-      if(lossRate>0.1||rtt>0.5||jitter>0.05)level='poor';
+      if(lossRate>0.1||rtt>0.5)level='poor';
       if(lossRate>0.25||rtt>1.2)level='bad';
       updateQualityIndicator(level);
-      // Показываем числа
       const details=$('callQualityDetails');
       if(details){
         const lossStr=packetsSent>0?`потери: ${(lossRate*100).toFixed(0)}%`:'';
@@ -1792,46 +1772,48 @@ function startQualityMonitor(){
     }catch(e){}
   },3000);
 }
-
-function stopQualityMonitor(){
-  clearInterval(callQualityInt);callQualityInt=null;
-}
-
-function setCallStatus(text){
-  const el=$('callStatus');if(el)el.textContent=text;
-}
+function stopQualityMonitor(){clearInterval(callQualityInt);callQualityInt=null;}
+function setCallStatus(text){const el=$('callStatus');if(el)el.textContent=text;}
+function triggerAutoRedial(){} // заглушка для совместимости
 
 async function acceptCall(){
   $('incomingCallBanner').classList.remove('show');
-  if(!pendingOffer||!pendingCallerId){return;}
+  if(!pendingOffer||!pendingCallerId)return;
   isVideoCall=pendingOffer.withVideo||false;
-  try{
-    localStream=await navigator.mediaDevices.getUserMedia({
-      audio:{echoCancellation:true,noiseSuppression:true,autoGainControl:true,latency:0,channelCount:1,sampleRate:16000},
-      video:isVideoCall
-    });
-  }catch(e){
-    try{localStream=await navigator.mediaDevices.getUserMedia({audio:true,video:isVideoCall});}
-    catch(e2){showToast('Нет доступа к микрофону/камере');return;}
-  }
-
-  if(isVideoCall){
-    $('localVideo').srcObject=localStream;$('localVideo').style.display='block';
-    $('remoteVideo').style.display='block';
+  if(!localStream){
+    try{
+      localStream=await navigator.mediaDevices.getUserMedia({
+        audio:{echoCancellation:true,noiseSuppression:true,autoGainControl:true,latency:0,channelCount:1,sampleRate:16000},
+        video:isVideoCall
+      });
+    }catch(e){
+      try{localStream=await navigator.mediaDevices.getUserMedia({audio:true,video:isVideoCall});}
+      catch(e2){showToast('Нет доступа к микрофону/камере');return;}
+    }
+    if(isVideoCall){$('localVideo').srcObject=localStream;$('localVideo').style.display='block';}
   }
   updatePipBtn();
-
   await requestWakeLock();
   startBackgroundAudio();
-  setupPeerConnection();
+  inCall=true;
+  callParticipantNames[myId]=myName;
+  callParticipantNames[pendingCallerId]=pendingCallerName;
+  updateCallParticipantsUI();
 
-  await peerConn.setRemoteDescription(new RTCSessionDescription(pendingOffer.offer));
-  const answer=await peerConn.createAnswer();
-  const patchedAnswer={...answer,sdp:patchSdpForLowLatency(answer.sdp)};
-  await peerConn.setLocalDescription(patchedAnswer);
-  // 🔒 E2E шифрование медиапотока
-  applyCallEncryption(peerConn, callMediaKey);
-  publishRaw('signal',await encrypt(JSON.stringify({type:'answer',id:myId,name:myName,answer:peerConn.localDescription})));
+  const pc=createPeerConn(pendingCallerId);
+  await pc.setRemoteDescription(new RTCSessionDescription(pendingOffer.offer));
+  // Flush pending ICE
+  if(pc._pendingIce){
+    for(const c of pc._pendingIce){try{await pc.addIceCandidate(new RTCIceCandidate(c));}catch(e){}}
+    pc._pendingIce=[];
+  }
+  const answer=await pc.createAnswer();
+  const patched={...answer,sdp:patchSdpForLowLatency(answer.sdp)};
+  await pc.setLocalDescription(patched);
+  applyCallEncryption(pc, callMediaKey);
+  publishRaw('signal',await encrypt(JSON.stringify({
+    type:'answer',id:myId,targetUid:pendingCallerId,name:myName,answer:pc.localDescription
+  })));
 
   showCallOverlay(pendingCallerName,isVideoCall?'📹 Видеозвонок':'📞 Голосовой звонок','connected');
   appendSys(`📞 Ты принял звонок от ${pendingCallerName}`);
@@ -1840,7 +1822,9 @@ async function acceptCall(){
 
 function declineCall(){
   $('incomingCallBanner').classList.remove('show');
-  publishRaw('signal',encrypt(JSON.stringify({type:'decline',id:myId,name:myName})));
+  if(pendingCallerId){
+    publishRaw('signal',encrypt(JSON.stringify({type:'decline',id:myId,name:myName,targetUid:pendingCallerId})));
+  }
   pendingOffer=null;pendingCallerId=null;
 }
 
@@ -1851,14 +1835,16 @@ function endCall(fromRemote=false){
   clearTimeout(autoRedialTimer);autoRedialTimer=null;
   autoRedialCount=0;
   stopQualityMonitor();
-  if(peerConn){
-    peerConn.onconnectionstatechange=null;
-    peerConn.oniceconnectionstatechange=null;
-    peerConn.ontrack=null;
-    peerConn.onicecandidate=null;
-    try{peerConn.close();}catch(e){}
-    peerConn=null;
-  }
+  inCall=false;
+  callParticipantNames={};
+  // Закрываем все peer connections
+  Object.values(peerConns).forEach(pc=>{
+    try{
+      pc.onconnectionstatechange=null;pc.oniceconnectionstatechange=null;
+      pc.ontrack=null;pc.onicecandidate=null;pc.close();
+    }catch(e){}
+  });
+  peerConns={};
   stopPiP();
   if(localStream){localStream.getTracks().forEach(t=>t.stop());localStream=null;}
   clearInterval(callTimerInt);callTimerInt=null;
@@ -1866,24 +1852,52 @@ function endCall(fromRemote=false){
   overlay.classList.remove('show','minimized');
   $('callMinimizeBtn').textContent='▼ Свернуть';
   $('localVideo').style.display='none';$('remoteVideo').style.display='none';
-  $('remoteAvatar').classList.remove('show');$('localVideoOff').classList.remove('show');
   $('localVideo').srcObject=null;$('remoteVideo').srcObject=null;
   try{$('remoteAudio').srcObject=null;$('remoteAudio').pause();}catch(e){}
   $('callTimer').textContent='';
   const qd=$('callQualityDetails');if(qd)qd.textContent='';
   updateQualityIndicator('checking');
+  $('callParticipants').innerHTML='';
   isMuted=false;isCamOff=false;
-  $('muteBtn').innerHTML='<svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="2" width="6" height="12" rx="3"/><path d="M5 10a7 7 0 0 0 14 0"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg>';$('muteBtn').classList.remove('muted');
+  $('muteBtn').innerHTML='<svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="2" width="6" height="12" rx="3"/><path d="M5 10a7 7 0 0 0 14 0"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg>';
+  $('muteBtn').classList.remove('muted');
   $('camBtn').textContent='📷';$('camBtn').classList.remove('off');
   releaseWakeLock();
   stopBackgroundAudio();
   stopCallEncryption();
-  const e2eBadge=$('callE2e'); if(e2eBadge) e2eBadge.style.opacity='0';
+  const e2eBadge=$('callE2e');if(e2eBadge)e2eBadge.style.opacity='0';
   if(!fromRemote){
     publishRaw('signal',encrypt(JSON.stringify({type:'hangup',id:myId,name:myName})));
   }
   setTimeout(()=>{callEnding=false;},1500);
 }
+
+// ===== ПРИГЛАСИТЬ В ЗВОНОК =====
+function inviteToCall(){
+  if(!inCall){showToast('Сначала начни звонок');return;}
+  const modal=$('inviteCallModal');
+  const list=$('inviteCallList');
+  list.innerHTML='';
+  const available=Object.entries(members).filter(([uid])=>uid!==myId&&!peerConns[uid]);
+  if(available.length===0){
+    list.innerHTML='<div style="color:var(--muted);font-size:.85rem;text-align:center;">Все участники комнаты уже в звонке</div>';
+  }else{
+    available.forEach(([uid,m])=>{
+      const btn=document.createElement('button');
+      btn.style.cssText='display:flex;align-items:center;gap:10px;padding:10px;background:var(--surface2);border:1px solid var(--border);border-radius:10px;cursor:pointer;width:100%;color:var(--text);font-family:var(--font);font-size:.88rem;';
+      btn.innerHTML=`<span style="width:32px;height:32px;border-radius:50%;background:${getColor(uid)};display:flex;align-items:center;justify-content:center;font-weight:bold;color:#fff;">${getInitial(m.name||'?')}</span><span>${m.name||'Участник'}</span>`;
+      btn.onclick=async()=>{
+        closeInviteModal();
+        callParticipantNames[uid]=m.name||'Участник';
+        await createOfferFor(uid, isVideoCall);
+        showToast(`📞 Приглашение отправлено ${m.name||'участнику'}`);
+      };
+      list.appendChild(btn);
+    });
+  }
+  modal.style.display='flex';
+}
+function closeInviteModal(){$('inviteCallModal').style.display='none';}
 
 function toggleMinimizeCall(){
   const overlay=$('callOverlay');
@@ -2085,52 +2099,79 @@ function startCallTimer(){
   startQualityMonitor();
 }
 
-// Очередь ICE-кандидатов — копятся пока peerConn не готов принять их
+// Очередь ICE-кандидатов (глобальная, для обратной совместимости)
 let pendingIceCandidates=[];
-async function flushPendingIce(){
-  if(!peerConn||!peerConn.remoteDescription)return;
-  while(pendingIceCandidates.length>0){
-    const c=pendingIceCandidates.shift();
-    try{await peerConn.addIceCandidate(new RTCIceCandidate(c));}catch(e){}
-  }
-}
+async function flushPendingIce(){} // заглушка
 
 async function handleSignal(data){
   if(data.id===myId)return;
-  if(data.type==='offer'||data.type==='offer_restart'){
-    pendingIceCandidates=[];
-    // offer_restart — удалённый конец переустанавливает соединение
-    if(data.type==='offer_restart'&&peerConn&&localStream){
-      // Принимаем перезапуск без показа баннера если звонок уже идёт
-      setupPeerConnection();
-      await peerConn.setRemoteDescription(new RTCSessionDescription(data.offer));
-      const answer=await peerConn.createAnswer();
-      await peerConn.setLocalDescription(answer);
-      publishRaw('signal',await encrypt(JSON.stringify({type:'answer',id:myId,name:myName,answer:peerConn.localDescription})));
-      await flushPendingIce();
+  // Фильтрация: если targetUid задан и это не мы — игнорируем
+  if(data.targetUid && data.targetUid!==myId) return;
+
+  const fromUid=data.id;
+
+  if(data.type==='offer'){
+    // Если уже в звонке — принимаем нового участника автоматически
+    if(inCall && localStream){
+      callParticipantNames[fromUid]=data.name||'Участник';
+      updateCallParticipantsUI();
+      const pc=createPeerConn(fromUid);
+      await pc.setRemoteDescription(new RTCSessionDescription(data.offer));
+      if(pc._pendingIce){
+        for(const c of pc._pendingIce){try{await pc.addIceCandidate(new RTCIceCandidate(c));}catch(e){}}
+        pc._pendingIce=[];
+      }
+      const answer=await pc.createAnswer();
+      const patched={...answer,sdp:patchSdpForLowLatency(answer.sdp)};
+      await pc.setLocalDescription(patched);
+      applyCallEncryption(pc, callMediaKey);
+      publishRaw('signal',await encrypt(JSON.stringify({
+        type:'answer',id:myId,targetUid:fromUid,name:myName,answer:pc.localDescription
+      })));
+      appendSys(`📞 ${data.name||'Участник'} подключился к звонку`);
       return;
     }
-    pendingOffer=data;pendingCallerId=data.id;pendingCallerName=data.name||'Собеседник';
+    // Входящий звонок — показываем баннер
+    pendingOffer=data;pendingCallerId=fromUid;pendingCallerName=data.name||'Собеседник';
     $('incomingCallerName').textContent=`${pendingCallerName} — ${data.withVideo?'📹 видео':'📞 голос'}`;
     $('incomingCallBanner').classList.add('show');
     showIncomingCallNotification(pendingCallerName);
     setTimeout(()=>$('incomingCallBanner').classList.remove('show'),40000);
-  }else if(data.type==='answer'&&peerConn){
-    await peerConn.setRemoteDescription(new RTCSessionDescription(data.answer));
-    showCallOverlay(data.name,'Соединяемся...','connecting');
-    await flushPendingIce();
-  }else if(data.type==='ice'){
-    if(peerConn&&peerConn.remoteDescription){
-      try{await peerConn.addIceCandidate(new RTCIceCandidate(data.candidate));}catch(e){}
-    }else{
-      pendingIceCandidates.push(data.candidate);
+
+  }else if(data.type==='answer'){
+    const pc=peerConns[fromUid];
+    if(!pc)return;
+    callParticipantNames[fromUid]=data.name||'Участник';
+    await pc.setRemoteDescription(new RTCSessionDescription(data.answer));
+    if(pc._pendingIce){
+      for(const c of pc._pendingIce){try{await pc.addIceCandidate(new RTCIceCandidate(c));}catch(e){}}
+      pc._pendingIce=[];
     }
+    showCallOverlay(data.name,'Соединяемся...','connecting');
+    updateCallParticipantsUI();
+
+  }else if(data.type==='ice'){
+    const pc=peerConns[fromUid];
+    if(pc&&pc.remoteDescription){
+      try{await pc.addIceCandidate(new RTCIceCandidate(data.candidate));}catch(e){}
+    }else if(pc){
+      if(!pc._pendingIce)pc._pendingIce=[];
+      pc._pendingIce.push(data.candidate);
+    }
+
   }else if(data.type==='cam_state'){
     updateRemoteCamView(data.name||'Собеседник', data.color||'#4f8ef7', data.camOff);
-  }else if(data.type==='hangup'||data.type==='decline'){
-    pendingIceCandidates=[];
-    endCall(true);
-    appendSys(`📵 ${data.name||'Собеседник'} ${data.type==='hangup'?'завершил звонок':'отклонил звонок'}`);
+
+  }else if(data.type==='hangup'){
+    // Один участник вышел — не завершаем весь звонок
+    if(peerConns[fromUid]){
+      try{peerConns[fromUid].close();}catch(e){}
+      removePeerConn(fromUid);
+    }
+    appendSys(`📵 ${data.name||'Собеседник'} завершил звонок`);
+
+  }else if(data.type==='decline'){
+    appendSys(`📵 ${data.name||'Собеседник'} отклонил звонок`);
   }
 }
 
