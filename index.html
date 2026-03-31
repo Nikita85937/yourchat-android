@@ -22,12 +22,7 @@
     --text:#e8ecf4;--muted:#6b7894;--font:'Courier New',monospace;
   }
   *{box-sizing:border-box;margin:0;padding:0;}
-  body{background:var(--bg);color:var(--text);font-family:var(--font);height:100dvh;display:flex;flex-direction:column;overflow:hidden;-webkit-text-size-adjust:100%;}
-
-  /* Safe area для iPhone с нотчем */
-  #header{padding-top:max(10px, env(safe-area-inset-top));}
-  #inputArea{padding-bottom:max(10px, env(safe-area-inset-bottom));}
-
+  body{background:var(--bg);color:var(--text);font-family:var(--font);height:100dvh;display:flex;flex-direction:column;overflow:hidden;}
 
   /* AUTH */
   #authScreen{display:flex;flex-direction:column;align-items:center;justify-content:center;height:100dvh;gap:18px;padding:24px;background:radial-gradient(ellipse at 50% 40%,#1a2040 0%,var(--bg) 70%);}
@@ -61,41 +56,28 @@
   .saved-label{font-size:.7rem;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;}
   .saved-room-btn{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:10px 14px;color:var(--text);font-family:var(--font);font-size:.85rem;cursor:pointer;text-align:left;transition:border-color .2s;display:flex;justify-content:space-between;align-items:center;}
   .saved-room-btn:hover{border-color:var(--accent);}
-  .saved-room-del{padding:2px 6px;background:none;border:none;cursor:pointer;color:var(--red);opacity:.6;}
+  .saved-room-del{color:var(--muted);font-size:.75rem;padding:2px 6px;background:none;border:none;cursor:pointer;color:var(--red);opacity:.6;}
   .saved-room-del:hover{opacity:1;}
 
   /* CHAT */
   #chatScreen{display:none;flex-direction:column;height:100dvh;}
-  #header{background:var(--surface);border-bottom:1px solid var(--border);padding:8px 10px;display:flex;align-items:center;justify-content:space-between;flex-shrink:0;overflow:hidden;gap:6px;min-height:52px;}
-  .header-left{display:flex;align-items:center;gap:6px;flex:1;min-width:0;overflow:hidden;}
-  .room-name{font-size:.88rem;font-weight:bold;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0;flex:1;}
-  .room-badge{font-size:.58rem;color:var(--muted);background:var(--surface2);border:1px solid var(--border);border-radius:6px;padding:2px 5px;letter-spacing:.04em;flex-shrink:0;white-space:nowrap;}
-  #statusDot{width:7px;height:7px;border-radius:50%;background:var(--muted);flex-shrink:0;transition:background .3s;}
+  #header{background:var(--surface);border-bottom:1px solid var(--border);padding:12px 16px;display:flex;align-items:center;justify-content:space-between;flex-shrink:0;}
+  .header-left{display:flex;align-items:center;gap:10px;}
+  .room-name{font-size:.95rem;font-weight:bold;color:var(--text);}
+  .room-badge{font-size:.68rem;color:var(--muted);background:var(--surface2);border:1px solid var(--border);border-radius:6px;padding:2px 8px;letter-spacing:.05em;}
+  #statusDot{width:8px;height:8px;border-radius:50%;background:var(--muted);flex-shrink:0;transition:background .3s;}
   #statusDot.online{background:var(--green);box-shadow:0 0 6px var(--green);}
   #statusDot.offline{background:var(--red);}
-  .header-right{display:flex;align-items:center;gap:4px;flex-shrink:0;}
-  #onlineCount{font-size:.65rem;color:var(--green);white-space:nowrap;}
-  #leaveBtn{background:none;border:1px solid var(--border);border-radius:8px;color:var(--muted);font-family:var(--font);font-size:.65rem;padding:4px 7px;cursor:pointer;transition:color .2s,border-color .2s;white-space:nowrap;flex-shrink:0;}
+  .header-right{display:flex;align-items:center;gap:8px;}
+  #onlineCount{font-size:.75rem;color:var(--green);}
+  #leaveBtn{background:none;border:1px solid var(--border);border-radius:8px;color:var(--muted);font-family:var(--font);font-size:.75rem;padding:5px 10px;cursor:pointer;transition:color .2s,border-color .2s;}
   #leaveBtn:hover{color:var(--red);border-color:var(--red);}
-  .call-btn{background:none;border:1px solid var(--border);border-radius:8px;color:var(--muted);font-family:var(--font);font-size:.78rem;padding:4px 6px;cursor:pointer;transition:all .2s;flex-shrink:0;}
+  .call-btn{background:none;border:1px solid var(--border);border-radius:8px;color:var(--muted);font-family:var(--font);font-size:.85rem;padding:5px 9px;cursor:pointer;transition:all .2s;}
   .call-btn:hover{border-color:var(--green);color:var(--green);}
   .call-btn.active{background:#1a3a20;border-color:var(--green);color:var(--green);}
-  .call-btn.video{font-size:.78rem;}
-  /* Скрываем элементы на маленьких экранах */
-  @media(max-width:430px){
-    #onlineCount{display:none;}
-  }
-  @media(max-width:380px){
-    .room-badge{display:none;}
-    .call-btn{padding:3px 5px;font-size:.72rem;}
-    #leaveBtn{padding:3px 6px;font-size:.62rem;}
-    #header{padding:8px 10px;}
-  }
-  @media(max-width:320px){
-    #settingsBtn{padding:4px 6px;font-size:.9rem;}
-  }
-  #membersBar{background:var(--surface2);border-bottom:1px solid var(--border);padding:5px 12px;font-size:.7rem;color:var(--muted);display:flex;gap:6px;flex-wrap:wrap;align-items:center;flex-shrink:0;min-height:28px;}
-  .member-tag{background:var(--surface);border:1px solid var(--border);border-radius:20px;padding:2px 8px;color:var(--accent);font-size:.65rem;display:inline-flex;align-items:center;gap:4px;}
+  .call-btn.video{font-size:.85rem;}
+  #membersBar{background:var(--surface2);border-bottom:1px solid var(--border);padding:6px 16px;font-size:.7rem;color:var(--muted);display:flex;gap:8px;flex-wrap:wrap;align-items:center;flex-shrink:0;min-height:30px;}
+  .member-tag{background:var(--surface);border:1px solid var(--border);border-radius:20px;padding:2px 10px;color:var(--accent);font-size:.68rem;display:inline-flex;align-items:center;gap:4px;}
   .member-tag.muted{border-color:var(--red);opacity:.8;}
 
   /* MESSAGES */
@@ -176,9 +158,9 @@
   #callOverlay.minimized .call-name{font-size:.85rem;}
   #callOverlay.minimized .call-controls{margin:0;gap:10px;}
   #callOverlay.minimized .call-ctrl-btn{width:42px;height:42px;font-size:1.1rem;}
-  #callMinimizeBtn{background:none;border:1px solid var(--border);border-radius:20px;color:var(--muted);font-family:var(--font);font-size:.72rem;padding:6px 20px;cursor:pointer;transition:all .2s;margin-top:8px;}
+  #callMinimizeBtn{background:none;border:1px solid var(--border);border-radius:8px;color:var(--muted);font-family:var(--font);font-size:.72rem;padding:5px 10px;cursor:pointer;position:absolute;top:14px;right:14px;transition:all .2s;}
   #callMinimizeBtn:hover{border-color:var(--accent);color:var(--accent);}
-  #callOverlay.minimized #callMinimizeBtn{position:static;font-size:.7rem;padding:4px 8px;margin-top:0;}
+  #callOverlay.minimized #callMinimizeBtn{position:static;font-size:.7rem;padding:4px 8px;}
   .call-avatar{width:90px;height:90px;border-radius:50%;background:linear-gradient(135deg,var(--accent),var(--accent2));display:flex;align-items:center;justify-content:center;font-size:2.5rem;font-weight:bold;margin-bottom:8px;}
   .call-name{font-size:1.3rem;font-weight:bold;color:var(--text);}
   .call-status{font-size:.85rem;color:var(--muted);}
@@ -221,48 +203,19 @@
   #lightboxImg{max-width:95vw;max-height:92vh;border-radius:8px;}
 
   /* ===== АДАПТИВНОСТЬ ===== */
-  /* Очень маленькие (< 320px) */
-  @media(max-width:320px){
-    .room-badge{display:none;}
-    #onlineCount{display:none;}
-    #leaveBtn{padding:3px 5px;font-size:.6rem;}
-    .room-name{max-width:80px;font-size:.75rem;}
-    .icon-btn{width:36px;height:36px;font-size:.95rem;}
-    #mainActionBtn{width:36px;height:36px;}
-    #inputArea{padding:6px 6px;gap:5px;}
-    #messages{padding:10px 6px;}
-    .msg-bubble{max-width:92%;font-size:.8rem;}
-    .call-ctrl-btn{width:42px;height:42px;font-size:1rem;}
-    .card{padding:16px 12px;}
-    .logo{font-size:1.5rem;}
-  }
-  /* Маленькие телефоны (320–480px) */
-  @media(max-width:480px){
+  /* Маленькие телефоны (< 360px) */
+  @media(max-width:360px){
     .card{padding:20px 16px;}
     .logo{font-size:1.8rem;}
     input{font-size:0.85rem;padding:10px 12px;}
     .btn{padding:11px;font-size:0.85rem;}
     .msg-bubble{max-width:88%;font-size:.82rem;}
     .call-ctrl-btn{width:48px;height:48px;font-size:1.2rem;}
-    #header{padding:7px 8px;}
-    .room-name{font-size:.82rem;}
-    #msgInput{font-size:.85rem;padding:9px 12px;}
-    .icon-btn{width:40px;height:40px;}
-    #mainActionBtn{width:40px;height:40px;}
-    #inputArea{padding:8px 8px;gap:6px;}
-    #messages{padding:12px 8px;}
-    #membersBar{padding:5px 8px;}
-  }
-  /* Скрываем лишнее на узких экранах */
-  @media(max-width:400px){
-    #onlineCount{display:none;}
-    .room-badge{display:none;}
+    #header{padding:10px 12px;}
+    .room-name{font-size:.85rem;}
   }
   /* Планшеты и ПК (> 600px) */
   @media(min-width:600px){
-    .room-name{max-width:none;font-size:.9rem;}
-    .room-badge{display:inline;}
-    #onlineCount{display:inline;}
     #authScreen,#loginScreen{padding:40px;}
     .card{max-width:440px;padding:36px 32px;}
     .auth-tabs{max-width:440px;}
@@ -439,30 +392,19 @@
     </div>
     <div class="header-right">
       <span id="onlineCount"></span>
+      <button class="call-btn" id="voiceCallBtn" onclick="startCall(false)" title="Голосовой звонок"><svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><path d="M6.6 10.8c1.4 2.8 3.8 5.1 6.6 6.6l2.2-2.2c.3-.3.7-.4 1-.2 1.1.4 2.3.6 3.6.6.6 0 1 .4 1 1V20c0 .6-.4 1-1 1C10.6 21 3 13.4 3 4c0-.6.4-1 1-1h3.5c.6 0 1 .4 1 1 0 1.3.2 2.5.6 3.6.1.3 0 .7-.2 1L6.6 10.8z"/></svg></button>
+      <button class="call-btn video" id="videoCallBtn" onclick="startCall(true)" title="Видеозвонок">📹</button>
+      <button id="settingsBtn" onclick="openSettings()" title="Настройки">⚙️</button>
+      <button id="leaveBtn" onclick="leaveChat()">Выйти</button>
     </div>
   </div>
   <div id="membersBar"><span style="color:var(--muted);font-size:.68rem;">Онлайн:</span></div>
-  <!-- Панель действий -->
-  <div id="actionBar" style="background:var(--surface2);border-bottom:1px solid var(--border);padding:5px 10px;display:flex;align-items:center;gap:6px;flex-shrink:0;position:relative;">
-    <button class="call-btn" id="voiceCallBtn" onclick="showCallTypeMenu(event,'voice')">📞 Голос</button>
-    <button class="call-btn video" id="videoCallBtn" onclick="showCallTypeMenu(event,'video')">📹 Видео</button>
-    <div style="flex:1"></div>
-    <button id="settingsBtn" onclick="openSettings()" title="Настройки" style="background:none;border:1px solid var(--border);border-radius:8px;color:var(--muted);font-family:var(--font);font-size:.82rem;padding:4px 7px;cursor:pointer;transition:all .2s;">⚙️</button>
-    <button id="leaveBtn" onclick="leaveChat()">Выйти</button>
-    <!-- Меню выбора типа звонка -->
-    <div id="callTypeMenu" style="display:none;position:absolute;top:calc(100% + 4px);left:10px;z-index:500;background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:8px;flex-direction:column;gap:6px;box-shadow:0 6px 24px rgba(0,0,0,.6);min-width:220px;">
-      <div style="font-size:.68rem;color:var(--muted);padding:2px 4px 6px;border-bottom:1px solid var(--border);">Тип звонка:</div>
-      <button onclick="callTypeAction('group')" style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--text);font-family:var(--font);font-size:.82rem;padding:9px 12px;cursor:pointer;text-align:left;transition:border-color .2s;" onmouseover="this.style.borderColor='var(--green)'" onmouseout="this.style.borderColor='var(--border)'">👥 Групповой (все в комнате)</button>
-      <button onclick="callTypeAction('personal')" style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--text);font-family:var(--font);font-size:.82rem;padding:9px 12px;cursor:pointer;text-align:left;transition:border-color .2s;" onmouseover="this.style.borderColor='var(--green)'" onmouseout="this.style.borderColor='var(--border)'">👤 Личный (выбрать участника)</button>
-      <button onclick="hideCallTypeMenu()" style="background:none;border:none;color:var(--muted);font-size:.72rem;cursor:pointer;padding:4px;text-align:center;width:100%;">Отмена</button>
-    </div>
-  </div>
   <div id="messages"></div>
   <div id="inputArea">
     <button class="icon-btn" onclick="document.getElementById('fileInput').click()" title="Прикрепить файл или фото">📎</button>
     <input type="file" id="fileInput" accept="*/*" onchange="handleFileSelect(event)">
     <textarea id="msgInput" placeholder="Написать сообщение..." rows="1" onkeydown="handleKey(event)" oninput="onInputChange(this)"></textarea>
-    <button id="mainActionBtn" title="Отправить / Голосовое">➤</button>
+    <button id="mainActionBtn" id="mainActionBtn" title="Отправить / Голосовое">➤</button>
     <!-- Панель записи голоса -->
     <div id="voiceRecordBar">
       <button id="voiceCancelBtn" onclick="cancelVoiceRecord()">✕</button>
@@ -475,6 +417,7 @@
 
 <!-- Call overlay -->
 <div id="callOverlay">
+  <button id="callMinimizeBtn" onclick="toggleMinimizeCall()">▼ Свернуть</button>
   <!-- Участники группового звонка -->
   <div id="callParticipants" style="display:flex;flex-wrap:wrap;gap:8px;justify-content:center;width:100%;max-height:320px;overflow-y:auto;padding:4px 0;"></div>
   <!-- Видео для обратной совместимости (1:1) -->
@@ -501,7 +444,6 @@
     <button class="call-ctrl-btn btn-cam" id="camBtn" onclick="toggleCam()" title="Камера">📷</button>
     <button class="call-ctrl-btn btn-cam" id="flipBtn" onclick="flipCamera()" title="Переключить камеру"><svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 7h-3a2 2 0 0 1-1.5-.67L14 5H10L8.5 6.33A2 2 0 0 1 7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2z"/><path d="M15.4 13a3.5 3.5 0 1 1-1.4-2.65"/><polyline points="15 10 15 13 18 13"/></svg></button>
   </div>
-  <button id="callMinimizeBtn" onclick="toggleMinimizeCall()">▼ Свернуть</button>
 </div>
 <video id="localVideo" autoplay playsinline muted></video>
 
@@ -691,7 +633,7 @@ async function releaseWakeLock(){
 document.addEventListener('visibilitychange',async()=>{
   if(document.visibilityState==='hidden'){
     // Уходим в фон — запускаем PiP если идёт видеозвонок
-    if(isVideoCall&&localStream&&Object.keys(peerConns).length>0){
+    if(isVideoCall&&localStream&&peerConn){
       autoPiP();
     }
   }
@@ -702,13 +644,13 @@ document.addEventListener('visibilitychange',async()=>{
     if(bgAudioCtx&&bgAudioCtx.state==='suspended'){
       bgAudioCtx.resume().catch(()=>{});
     }
-    // Если идёт звонок — проверить состояние peer connections
-    Object.values(peerConns).forEach(pc=>{
-      const s=pc.connectionState;
+    // Если идёт звонок — проверить состояние peer connection
+    if(peerConn){
+      const s=peerConn.connectionState;
       if(s==='disconnected'||s==='failed'){
-        try{pc.restartIce();}catch(e){}
+        try{peerConn.restartIce();}catch(e){}
       }
-    });
+    }
     // Проверить MQTT — если упал пока были в фоне
     if(client&&!client.isConnected()&&myRoom){
       scheduleReconnect();
@@ -1616,7 +1558,7 @@ const ICE_SERVERS={
   iceTransportPolicy:'all'
 };
 
-async function startCall(withVideo=false, personalTargetUid=null){
+async function startCall(withVideo=false){
   if(Object.keys(members).length===0){showToast('Никого нет в комнате');return;}
   if(inCall){showToast('Звонок уже идёт');return;}
   isVideoCall=withVideo;
@@ -1638,17 +1580,14 @@ async function startCall(withVideo=false, personalTargetUid=null){
   callParticipantNames[myId]=myName;
   updateCallParticipantsUI();
 
-  // Личный звонок — только одному; групповой — всем
-  const targets = personalTargetUid
-    ? [personalTargetUid]
-    : Object.keys(members).filter(uid=>uid!==myId);
-  for(const uid of targets){
-    await createOfferFor(uid, withVideo);
+  // Шлём offer всем участникам комнаты
+  const targets=Object.keys(members).filter(uid=>uid!==myId);
+  for(const targetUid of targets){
+    await createOfferFor(targetUid, withVideo);
   }
 
-  const who = personalTargetUid ? (members[personalTargetUid]?.name||'участнику') : null;
   showCallOverlay(myName, withVideo?'📹 Видеозвонок...':'📞 Звоним...','calling');
-  appendSys(`📞 Ты начал ${withVideo?'видео':'голосовой'} звонок${who?' → '+who:''}`);
+  appendSys(`📞 Ты начал ${withVideo?'видео':'голосовой'} звонок`);
 }
 
 async function createOfferFor(targetUid, withVideo){
@@ -1881,15 +1820,15 @@ async function acceptCall(){
   pendingOffer=null;pendingCallerId=null;
 }
 
-async function declineCall(){
+function declineCall(){
   $('incomingCallBanner').classList.remove('show');
   if(pendingCallerId){
-    publishRaw('signal',await encrypt(JSON.stringify({type:'decline',id:myId,name:myName,targetUid:pendingCallerId})));
+    publishRaw('signal',encrypt(JSON.stringify({type:'decline',id:myId,name:myName,targetUid:pendingCallerId})));
   }
   pendingOffer=null;pendingCallerId=null;
 }
 
-async function endCall(fromRemote=false){
+function endCall(fromRemote=false){
   if(callEnding)return;
   callEnding=true;
   clearTimeout(disconnectWatchdog);disconnectWatchdog=null;
@@ -1928,7 +1867,7 @@ async function endCall(fromRemote=false){
   stopCallEncryption();
   const e2eBadge=$('callE2e');if(e2eBadge)e2eBadge.style.opacity='0';
   if(!fromRemote){
-    publishRaw('signal',await encrypt(JSON.stringify({type:'hangup',id:myId,name:myName})));
+    publishRaw('signal',encrypt(JSON.stringify({type:'hangup',id:myId,name:myName})));
   }
   setTimeout(()=>{callEnding=false;},1500);
 }
@@ -2128,9 +2067,8 @@ async function flipCamera(){
     // Зеркалим только фронтальную камеру
     $('localVideo').style.transform=currentFacingMode==='user'?'scaleX(-1)':'scaleX(1)';
     // Заменяем трек в peerConnection
-    const activePc = Object.values(peerConns)[0] || null;
-    if(activePc){
-      const sender=activePc.getSenders().find(s=>s.track&&s.track.kind==='video');
+    if(peerConn){
+      const sender=peerConn.getSenders().find(s=>s.track&&s.track.kind==='video');
       if(sender)await sender.replaceTrack(newVideoTrack);
     }
     showToast(currentFacingMode==='user'?'Передняя камера':'Задняя камера',1500);
@@ -2954,47 +2892,6 @@ async function uploadCustomAvatar(event){
       showToast('Ошибка загрузки: '+err.message);
     }
   };
-// ===== МЕНЮ ТИПА ЗВОНКА =====
-let _callMenuWithVideo = false;
-function showCallTypeMenu(e, type){
-  e.stopPropagation();
-  _callMenuWithVideo = (type === 'video');
-  const menu = document.getElementById('callTypeMenu');
-  menu.style.display = 'flex';
-  setTimeout(()=>document.addEventListener('click', hideCallTypeMenu, {once:true}), 10);
-}
-function hideCallTypeMenu(){
-  const menu = document.getElementById('callTypeMenu');
-  if(menu) menu.style.display = 'none';
-}
-function callTypeAction(mode){
-  hideCallTypeMenu();
-  if(mode === 'group'){
-    startCall(_callMenuWithVideo);
-    return;
-  }
-  // Личный — показываем выбор участника
-  const mems = Object.entries(members)
-    .filter(([uid]) => uid !== myId)
-    .map(([uid, m]) => ({uid, name: m.name||'Участник', avatar: m.avatar||''}));
-  if(mems.length === 0){ showToast('Нет других участников'); return; }
-  if(mems.length === 1){ startCall(_callMenuWithVideo, mems[0].uid); return; }
-  // Несколько — список
-  let html = `<div id="personalPicker" onclick="if(event.target===this)this.remove()" style="position:fixed;inset:0;background:rgba(0,0,0,.65);z-index:9000;display:flex;align-items:center;justify-content:center;padding:20px;">
-    <div style="background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:16px;width:100%;max-width:280px;">
-      <div style="font-size:.8rem;color:var(--muted);margin-bottom:10px;">Кому позвонить:</div>`;
-  mems.forEach(m => {
-    html += `<button onclick="startCall(${_callMenuWithVideo},'${m.uid}');document.getElementById('personalPicker')?.remove();"
-      style="display:flex;align-items:center;gap:10px;width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:9px 12px;color:var(--text);font-family:var(--font);font-size:.85rem;cursor:pointer;margin-bottom:6px;transition:border-color .2s;"
-      onmouseover="this.style.borderColor='var(--green)'" onmouseout="this.style.borderColor='var(--border)'">
-      <span style="font-size:1.2rem;">${m.avatar||'👤'}</span><span>${m.name}</span></button>`;
-  });
-  html += `<button onclick="document.getElementById('personalPicker')?.remove();"
-    style="width:100%;background:none;border:none;color:var(--muted);font-size:.75rem;cursor:pointer;padding:6px;">Отмена</button>
-    </div></div>`;
-  document.body.insertAdjacentHTML('beforeend', html);
-}
-
   reader.readAsDataURL(file);
 }
 </script>
