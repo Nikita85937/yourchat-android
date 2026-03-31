@@ -425,18 +425,16 @@
 <!-- Call overlay -->
 <div id="callOverlay">
   <button id="callMinimizeBtn" onclick="toggleMinimizeCall()">▼ Свернуть</button>
-  <!-- Участники группового звонка -->
-  <div id="callParticipants" style="display:flex;flex-wrap:wrap;gap:8px;justify-content:center;width:100%;max-height:320px;overflow-y:auto;padding:4px 0;"></div>
-  <!-- Видео для обратной совместимости (1:1) -->
-  <video id="remoteVideo" autoplay playsinline style="display:none;"></video>
+  <!-- Видео собеседника -->
+  <video id="remoteVideo" autoplay playsinline></video>
   <audio id="remoteAudio" autoplay playsinline style="display:none"></audio>
-  <div id="remoteAvatar" style="display:none;">
+  <div id="remoteAvatar">
     <div id="remoteAvatarIcon">?</div>
     <div id="remoteAvatarLabel">камера выключена</div>
   </div>
   <div id="localVideoOff"><span>📷</span><small>камера выкл</small></div>
-  <div class="call-avatar" id="callAvatar" style="display:none;">?</div>
-  <div class="call-name" id="callName">Групповой звонок</div>
+  <div class="call-avatar" id="callAvatar">?</div>
+  <div class="call-name" id="callName"></div>
   <div class="call-status" id="callStatus">Соединение...</div>
   <div style="font-size:.68rem;color:var(--green);opacity:.7;letter-spacing:.04em;" id="callEncBadge"></div>
   <div class="call-timer" id="callTimer"></div>
@@ -444,7 +442,6 @@
   <div id="callQualityDetails" style="font-size:.68rem;color:var(--muted);opacity:.7;"></div>
   <div id="callE2e" style="font-size:.68rem;color:#3dd68c;opacity:.0;transition:opacity .5s;">🔒 E2E шифрование</div>
   <div class="call-controls">
-    <button class="call-ctrl-btn" id="inviteCallBtn" onclick="inviteToCall()" title="Пригласить в звонок" style="background:var(--surface2);border:1px solid var(--border);">➕</button>
     <button class="call-ctrl-btn btn-pip" id="pipBtn" onclick="togglePiP()" title="Картинка в картинке" style="background:var(--surface2);border:1px solid var(--border);display:none;">⧉</button>
     <button class="call-ctrl-btn btn-mute" id="muteBtn" onclick="toggleMute()" title="Микрофон"><svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="2" width="6" height="12" rx="3"/><path d="M5 10a7 7 0 0 0 14 0"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg></button>
     <button class="call-ctrl-btn btn-hangup" onclick="endCall()">📵</button>
@@ -453,15 +450,6 @@
   </div>
 </div>
 <video id="localVideo" autoplay playsinline muted></video>
-
-<!-- Invite to call modal -->
-<div id="inviteCallModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.85);z-index:700;align-items:center;justify-content:center;padding:16px;">
-  <div style="background:var(--surface);border:1px solid var(--border);border-radius:16px;width:100%;max-width:340px;padding:20px;">
-    <div style="font-size:1rem;font-weight:bold;margin-bottom:12px;">➕ Пригласить в звонок</div>
-    <div id="inviteCallList" style="display:flex;flex-direction:column;gap:8px;max-height:250px;overflow-y:auto;"></div>
-    <button onclick="closeInviteModal()" style="margin-top:14px;width:100%;padding:10px;background:var(--surface2);border:1px solid var(--border);border-radius:10px;color:var(--text);cursor:pointer;font-family:var(--font);">Закрыть</button>
-  </div>
-</div>
 
 <!-- Incoming call banner -->
 <div id="incomingCallBanner">
@@ -1671,66 +1659,32 @@ function removePeerConn(uid){
 }
 
 function attachRemoteStream(uid, stream){
-  let container=document.getElementById('callPeer_'+uid);
-  if(!container){
-    container=document.createElement('div');
-    container.id='callPeer_'+uid;
-    container.style.cssText='display:flex;flex-direction:column;align-items:center;gap:4px;background:var(--surface2);border-radius:12px;padding:8px;min-width:80px;';
-    $('callParticipants').appendChild(container);
-  }
-  container.innerHTML='';
   const name=callParticipantNames[uid]||'Участник';
   if(isVideoCall){
-    const vid=document.createElement('video');
-    vid.autoplay=true;vid.playsInline=true;
-    vid.style.cssText='width:120px;height:90px;border-radius:8px;object-fit:cover;background:#000;';
-    vid.srcObject=stream;
-    container.appendChild(vid);
+    const rv=$('remoteVideo');
+    rv.srcObject=stream;
+    rv.style.display='block';
+    $('remoteAvatar').classList.remove('show');
   }else{
-    const aud=document.createElement('audio');
-    aud.autoplay=true;aud.srcObject=stream;
-    aud.play().catch(()=>{});
-    container.appendChild(aud);
-    const av=document.createElement('div');
-    av.style.cssText='width:52px;height:52px;border-radius:50%;background:var(--accent);display:flex;align-items:center;justify-content:center;font-size:1.4rem;font-weight:bold;color:#fff;';
-    av.textContent=getInitial(name);
-    container.appendChild(av);
+    const ra=$('remoteAudio');
+    ra.srcObject=stream;
+    ra.play().catch(()=>{});
+    // Показываем аватар собеседника
+    $('remoteAvatarIcon').textContent=getInitial(name);
+    $('remoteAvatarIcon').style.background=`linear-gradient(135deg,${getColor(uid)},${getColor(uid)}aa)`;
+    $('remoteAvatarLabel').textContent=name;
+    $('remoteAvatar').classList.add('show');
+    $('remoteVideo').style.display='none';
   }
-  const label=document.createElement('div');
-  label.style.cssText='font-size:.7rem;color:var(--muted);';
-  label.textContent=name;
-  container.appendChild(label);
+  // Обновляем имя в оверлее
+  $('callName').textContent=name;
+  $('callStatus').textContent=isVideoCall?'📹 Видеозвонок':'📞 Голосовой звонок';
+  $('callAvatar').style.display='none';
 }
 
 function updateCallParticipantsUI(){
-  // Обновляем заголовок
-  const count=Object.keys(peerConns).length+1;
-  $('callName').textContent=count>1?`Групповой звонок (${count})`:myName;
-  // Добавить/обновить свой блок
-  let myBlock=document.getElementById('callPeer_me');
-  if(!myBlock){
-    myBlock=document.createElement('div');
-    myBlock.id='callPeer_me';
-    myBlock.style.cssText='display:flex;flex-direction:column;align-items:center;gap:4px;background:var(--surface2);border:1px solid var(--accent);border-radius:12px;padding:8px;min-width:80px;';
-    $('callParticipants').prepend(myBlock);
-  }
-  myBlock.innerHTML='';
-  if(isVideoCall && localStream){
-    const vid=document.createElement('video');
-    vid.autoplay=true;vid.playsInline=true;vid.muted=true;
-    vid.style.cssText='width:120px;height:90px;border-radius:8px;object-fit:cover;background:#000;transform:scaleX(-1);';
-    vid.srcObject=localStream;
-    myBlock.appendChild(vid);
-  }else{
-    const av=document.createElement('div');
-    av.style.cssText='width:52px;height:52px;border-radius:50%;background:var(--accent);display:flex;align-items:center;justify-content:center;font-size:1.4rem;font-weight:bold;color:#fff;';
-    av.textContent=getInitial(myName);
-    myBlock.appendChild(av);
-  }
-  const label=document.createElement('div');
-  label.style.cssText='font-size:.7rem;color:var(--accent);';
-  label.textContent='Ты';
-  myBlock.appendChild(label);
+  // В режиме 1:1 просто обновляем имя
+  // (аватар и медиа управляются через attachRemoteStream)
 }
 
 // ===== CALL QUALITY & AUTO-REDIAL STATE =====
@@ -1864,11 +1818,14 @@ function endCall(fromRemote=false){
   $('callTimer').textContent='';
   const qd=$('callQualityDetails');if(qd)qd.textContent='';
   updateQualityIndicator('checking');
-  $('callParticipants').innerHTML='';
   isMuted=false;isCamOff=false;
   $('muteBtn').innerHTML='<svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="2" width="6" height="12" rx="3"/><path d="M5 10a7 7 0 0 0 14 0"/><line x1="12" y1="19" x2="12" y2="23"/><line x1="8" y1="23" x2="16" y2="23"/></svg>';
   $('muteBtn').classList.remove('muted');
   $('camBtn').textContent='📷';$('camBtn').classList.remove('off');
+  // Сбрасываем UI видео/аватара
+  $('remoteVideo').style.display='none';$('remoteVideo').srcObject=null;
+  $('remoteAvatar').classList.remove('show');
+  $('callAvatar').style.display='none';
   releaseWakeLock();
   stopBackgroundAudio();
   stopCallEncryption();
@@ -2057,25 +2014,28 @@ async function flipCamera(){
   btn.style.opacity='.5';
   currentFacingMode=currentFacingMode==='user'?'environment':'user';
   try{
-    // Останавливаем старый видеотрек
+    // Останавливаем старые видеотреки
     localStream.getVideoTracks().forEach(t=>t.stop());
     // Получаем новый трек с другой камерой
     const newStream=await navigator.mediaDevices.getUserMedia({
+      video:{facingMode:{exact:currentFacingMode}},
+      audio:false
+    }).catch(()=>navigator.mediaDevices.getUserMedia({
       video:{facingMode:currentFacingMode},
       audio:false
-    });
+    }));
     const newVideoTrack=newStream.getVideoTracks()[0];
-    // Заменяем трек в localStream
-    const oldTrack=localStream.getVideoTracks()[0];
-    if(oldTrack)localStream.removeTrack(oldTrack);
+    // Убираем старый трек, добавляем новый
+    localStream.getVideoTracks().forEach(t=>localStream.removeTrack(t));
     localStream.addTrack(newVideoTrack);
-    // Обновляем превью
-    $('localVideo').srcObject=localStream;
-    // Зеркалим только фронтальную камеру
-    $('localVideo').style.transform=currentFacingMode==='user'?'scaleX(-1)':'scaleX(1)';
-    // Заменяем трек в peerConnection
-    if(peerConn){
-      const sender=peerConn.getSenders().find(s=>s.track&&s.track.kind==='video');
+    // Обновляем превью — зеркалим только фронтальную камеру
+    const lv=$('localVideo');
+    lv.srcObject=null;
+    lv.srcObject=localStream;
+    lv.style.transform=currentFacingMode==='user'?'scaleX(-1)':'scaleX(1)';
+    // Заменяем трек во всех peerConnections
+    for(const pc of Object.values(peerConns)){
+      const sender=pc.getSenders().find(s=>s.track&&s.track.kind==='video');
       if(sender)await sender.replaceTrack(newVideoTrack);
     }
     showToast(currentFacingMode==='user'?'Передняя камера':'Задняя камера',1500);
@@ -2092,6 +2052,8 @@ function showCallOverlay(name,status,state){
   $('callAvatar').textContent=getInitial(name);
   $('callName').textContent=name;
   $('callStatus').textContent=status;
+  // Показываем аватар при голосовом, скрываем при видео
+  $('callAvatar').style.display=isVideoCall?'none':'flex';
   $('callOverlay').classList.add('show');
 }
 
