@@ -26,8 +26,7 @@ jobs:
           sed -i "s/versionCode .*/versionCode ${{ github.run_number }}/" android/app/build.gradle
       - name: Decode Keystore
         run: |
-          echo "${{ secrets.KEYSTORE_BASE64 }}" > release.keystore.b64
-          certutil -decode release.keystore.b64 release.keystore || base64 -d release.keystore.b64 > release.keystore
+          echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 -d > release.keystore
       - name: Build Release APK
         run: |
           cd android
