@@ -180,9 +180,29 @@
   #callOverlay.minimized .call-name{font-size:.85rem;}
   #callOverlay.minimized .call-controls{margin:0;gap:10px;}
   #callOverlay.minimized .call-ctrl-btn{width:42px;height:42px;font-size:1.1rem;}
-  #callMinimizeBtn{background:none;border:1px solid var(--border);border-radius:8px;color:var(--muted);font-family:var(--font);font-size:.72rem;padding:5px 10px;cursor:pointer;position:absolute;top:14px;right:14px;transition:all .2s;}
+  #callOverlay.minimized #callMinimizeBtn{display:flex;}
+  /* Кнопка Свернуть — теперь внизу */
+  #callMinimizeBtn{background:rgba(255,255,255,.07);border:1px solid var(--border);border-radius:20px;color:var(--muted);font-family:var(--font);font-size:.72rem;padding:6px 18px;cursor:pointer;transition:all .2s;margin-top:4px;order:99;}
   #callMinimizeBtn:hover{border-color:var(--accent);color:var(--accent);}
-  #callOverlay.minimized #callMinimizeBtn{position:static;font-size:.7rem;padding:4px 8px;}
+  #callOverlay.minimized #callMinimizeBtn{margin-top:0;order:0;padding:4px 8px;}
+
+  /* ЛИЧНЫЙ ЗВОНОК — fullscreen видео стиль */
+  #callOverlay.personal-mode{background:#000;justify-content:flex-start;gap:0;padding:0;position:relative;}
+  #callOverlay.personal-mode #callParticipants{display:none!important;}
+  #callOverlay.personal-mode #remoteVideo{display:block;width:100%;max-width:100%;max-height:60vh;height:60vh;border-radius:0;object-fit:cover;}
+  #callOverlay.personal-mode #remoteAvatar.show{width:100%;max-width:100%;height:60vh;border-radius:0;}
+  #callOverlay.personal-mode .personal-info{display:flex!important;}
+  #callOverlay.personal-mode .call-controls{margin-top:0;padding:10px 0 0;}
+  #callOverlay.personal-mode #callMinimizeBtn{margin-top:2px;}
+  #callOverlay.personal-mode #localVideo{position:absolute;bottom:auto;top:12px;right:12px;width:110px;height:78px;border:2px solid var(--accent);border-radius:12px;z-index:320;}
+  #callOverlay.personal-mode #localVideoOff{position:absolute;bottom:auto;top:12px;right:12px;width:110px;height:78px;z-index:320;}
+  /* Блок имя+статус для личного режима */
+  .personal-info{display:none;flex-direction:column;align-items:center;gap:6px;padding:18px 0 4px;width:100%;}
+  .personal-info .call-avatar{margin:0;width:72px;height:72px;font-size:1.8rem;}
+  .personal-info .call-name{font-size:1.25rem;}
+  .personal-info .call-status{font-size:.82rem;}
+  .personal-info .call-timer{font-size:.88rem;}
+  .personal-info #callEncBadge,.personal-info #callQuality,.personal-info #callQualityDetails{font-size:.67rem;}
   .call-avatar{width:90px;height:90px;border-radius:50%;background:linear-gradient(135deg,var(--accent),var(--accent2));display:flex;align-items:center;justify-content:center;font-size:2.5rem;font-weight:bold;margin-bottom:8px;}
   .call-name{font-size:1.3rem;font-weight:bold;color:var(--text);}
   .call-status{font-size:.85rem;color:var(--muted);}
@@ -479,10 +499,9 @@
 
 <!-- Call overlay -->
 <div id="callOverlay">
-  <button id="callMinimizeBtn" onclick="toggleMinimizeCall()">▼ Свернуть</button>
   <!-- Участники группового звонка -->
   <div id="callParticipants" style="display:flex;flex-wrap:wrap;gap:8px;justify-content:center;width:100%;max-height:320px;overflow-y:auto;padding:4px 0;"></div>
-  <!-- Видео для обратной совместимости (1:1) -->
+  <!-- Видео собеседника — личный режим (занимает верх) -->
   <video id="remoteVideo" autoplay playsinline style="display:none;"></video>
   <audio id="remoteAudio" autoplay playsinline style="display:none"></audio>
   <div id="remoteAvatar" style="display:none;">
@@ -490,6 +509,7 @@
     <div id="remoteAvatarLabel">камера выключена</div>
   </div>
   <div id="localVideoOff"><span>📷</span><small>камера выкл</small></div>
+  <!-- Групповой режим: аватар + текст по центру -->
   <div class="call-avatar" id="callAvatar" style="display:none;">?</div>
   <div class="call-name" id="callName">Групповой звонок</div>
   <div class="call-status" id="callStatus">Соединение...</div>
@@ -498,6 +518,17 @@
   <div id="callQuality" style="font-size:.72rem;color:var(--muted);"></div>
   <div id="callQualityDetails" style="font-size:.68rem;color:var(--muted);opacity:.7;"></div>
   <div id="callE2e" style="font-size:.68rem;color:#3dd68c;opacity:.0;transition:opacity .5s;">🔒 E2E шифрование</div>
+  <!-- Личный режим: имя+статус+таймер под видео -->
+  <div class="personal-info">
+    <div class="call-avatar" id="callAvatarP">?</div>
+    <div class="call-name" id="callNameP"></div>
+    <div class="call-status" id="callStatusP">Соединение...</div>
+    <div style="font-size:.68rem;color:var(--green);opacity:.7;letter-spacing:.04em;" id="callEncBadgeP"></div>
+    <div class="call-timer" id="callTimerP"></div>
+    <div id="callQualityP" style="font-size:.72rem;color:var(--muted);"></div>
+    <div id="callQualityDetailsP" style="font-size:.68rem;color:var(--muted);opacity:.7;"></div>
+  </div>
+  <!-- Кнопки управления -->
   <div class="call-controls">
     <button class="call-ctrl-btn" id="inviteCallBtn" onclick="inviteToCall()" title="Пригласить в звонок" style="background:var(--surface2);border:1px solid var(--border);">➕</button>
     <button class="call-ctrl-btn btn-pip" id="pipBtn" onclick="togglePiP()" title="Картинка в картинке" style="background:var(--surface2);border:1px solid var(--border);display:none;">⧉</button>
@@ -506,6 +537,8 @@
     <button class="call-ctrl-btn btn-cam" id="camBtn" onclick="toggleCam()" title="Камера">📷</button>
     <button class="call-ctrl-btn btn-cam" id="flipBtn" onclick="flipCamera()" title="Переключить камеру"><svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 7h-3a2 2 0 0 1-1.5-.67L14 5H10L8.5 6.33A2 2 0 0 1 7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2z"/><path d="M15.4 13a3.5 3.5 0 1 1-1.4-2.65"/><polyline points="15 10 15 13 18 13"/></svg></button>
   </div>
+  <!-- Свернуть — внизу под кнопками -->
+  <button id="callMinimizeBtn" onclick="toggleMinimizeCall()">▼ Свернуть</button>
 </div>
 <video id="localVideo" autoplay playsinline muted></video>
 
@@ -671,7 +704,7 @@ let historyLoaded=false; // чтобы не дублировать истори�
 let peerConns={}; // uid -> RTCPeerConnection
 let localStream=null, callTimerInt=null, callStartTime=null;
 let isVideoCall=false, isMuted=false, isCamOff=false;
-let pendingOffer=null, pendingCallerId=null, pendingCallerName='';
+let pendingOffer=null, pendingCallerId=null, pendingCallerName='', pendingCallerAvatar='';
 let callEnding=false;
 let inCall=false; // идёт ли звонок
 let callParticipantNames={}; // uid -> name
@@ -1683,8 +1716,10 @@ async function startPersonalCall(targetUid, withVideo=false){
   callParticipantNames[myId]=myName;
   updateCallParticipantsUI();
   await createOfferFor(targetUid, withVideo);
-  const tName = members[targetUid]?.name||'участнику';
-  showCallOverlay(myName, withVideo?'📹 Видеозвонок...':'📞 Звоним...','calling');
+  const tMember = members[targetUid]||{};
+  const tName = tMember.name||'Участник';
+  const tAvatar = tMember.avatar||'';
+  showPersonalCallOverlay(tName, tAvatar, withVideo?'📹 Видеозвонок...':'📞 Звоним...');
   appendSys(`📞 Ты начал личный ${withVideo?'видео':'голосовой'} звонок → ${tName}`);
 }
 
@@ -1760,7 +1795,10 @@ function createPeerConn(remoteUid){
       startCallTimer();
       updateQualityIndicator('good');
       startCallEncryption(pc, myPass, myRoom).then(ok=>{
-        if(ok){const b=$('callE2e');if(b)b.style.opacity='1';}
+        if(ok){
+          const b=$('callE2e');if(b)b.style.opacity='1';
+          const bp=$('callEncBadgeP');if(bp){bp.textContent='🔒 E2E AES-256-GCM';bp.style.opacity='1';}
+        }
       });
     }
     if(s==='disconnected'||s==='failed'){
@@ -1875,6 +1913,7 @@ function updateQualityIndicator(level){
   const el=$('callQuality');if(!el)return;
   const map={checking:'🔄 Подключение',good:'🟢 Связь хорошая',poor:'🟡 Слабый сигнал',bad:'🔴 Нет связи'};
   el.textContent=map[level]||'';
+  const elP=$('callQualityP');if(elP)elP.textContent=map[level]||'';
 }
 function startQualityMonitor(){
   stopQualityMonitor();
@@ -1897,13 +1936,18 @@ function startQualityMonitor(){
       if(details){
         const lossStr=packetsSent>0?`потери: ${(lossRate*100).toFixed(0)}%`:'';
         const rttStr=rtt>0?`RTT: ${(rtt*1000).toFixed(0)}мс`:'';
-        details.textContent=[lossStr,rttStr].filter(Boolean).join(' · ');
+        const txt=[lossStr,rttStr].filter(Boolean).join(' · ');
+        details.textContent=txt;
+        const dp=$('callQualityDetailsP');if(dp)dp.textContent=txt;
       }
     }catch(e){}
   },3000);
 }
 function stopQualityMonitor(){clearInterval(callQualityInt);callQualityInt=null;}
-function setCallStatus(text){const el=$('callStatus');if(el)el.textContent=text;}
+function setCallStatus(text){
+  const el=$('callStatus');if(el)el.textContent=text;
+  const elP=$('callStatusP');if(elP)elP.textContent=text;
+}
 function triggerAutoRedial(){} // заглушка для совместимости
 
 async function acceptCall(){
@@ -1945,9 +1989,9 @@ async function acceptCall(){
     type:'answer',id:myId,targetUid:pendingCallerId,name:myName,answer:pc.localDescription
   })));
 
-  showCallOverlay(pendingCallerName,isVideoCall?'📹 Видеозвонок':'📞 Голосовой звонок','connected');
+  showPersonalCallOverlay(pendingCallerName, pendingCallerAvatar, isVideoCall?'📹 Видеозвонок':'📞 Голосовой звонок');
   appendSys(`📞 Ты принял звонок от ${pendingCallerName}`);
-  pendingOffer=null;pendingCallerId=null;
+  pendingOffer=null;pendingCallerId=null;pendingCallerAvatar='';
 }
 
 async function declineCall(){
@@ -1979,12 +2023,21 @@ async function endCall(fromRemote=false){
   if(localStream){localStream.getTracks().forEach(t=>t.stop());localStream=null;}
   clearInterval(callTimerInt);callTimerInt=null;
   const overlay=$('callOverlay');
-  overlay.classList.remove('show','minimized');
+  overlay.classList.remove('show','minimized','personal-mode');
   $('callMinimizeBtn').textContent='▼ Свернуть';
+  // Восстанавливаем групповые элементы (могли быть скрыты в personal-mode)
+  ['callAvatar','callName','callStatus','callEncBadge','callTimer','callQuality','callQualityDetails','callE2e'].forEach(id=>{
+    const el=$(id);if(el)el.style.display='';
+  });
   $('localVideo').style.display='none';$('remoteVideo').style.display='none';
   $('localVideo').srcObject=null;$('remoteVideo').srcObject=null;
   try{$('remoteAudio').srcObject=null;$('remoteAudio').pause();}catch(e){}
   $('callTimer').textContent='';
+  if($('callTimerP'))$('callTimerP').textContent='';
+  if($('callEncBadgeP')){$('callEncBadgeP').textContent='';$('callEncBadgeP').style.opacity='0';}
+  if($('callStatusP'))$('callStatusP').textContent='';
+  if($('callQualityP'))$('callQualityP').textContent='';
+  if($('callQualityDetailsP'))$('callQualityDetailsP').textContent='';
   const qd=$('callQualityDetails');if(qd)qd.textContent='';
   updateQualityIndicator('checking');
   $('callParticipants').innerHTML='';
@@ -2219,13 +2272,35 @@ function showCallOverlay(name,status,state){
   $('callOverlay').classList.add('show');
 }
 
+function showPersonalCallOverlay(name, targetAvatar, status){
+  // Включаем personal-mode
+  $('callOverlay').classList.add('show','personal-mode');
+  // Скрываем групповые поля
+  $('callAvatar').style.display='none';
+  $('callName').style.display='none';
+  $('callStatus').style.display='none';
+  $('callEncBadge').style.display='none';
+  $('callTimer').style.display='none';
+  $('callQuality').style.display='none';
+  $('callQualityDetails').style.display='none';
+  $('callE2e').style.display='none';
+  // Заполняем личный блок
+  const ap = $('callAvatarP');
+  ap.textContent = targetAvatar || getInitial(name);
+  ap.style.background = '';
+  $('callNameP').textContent = name;
+  $('callStatusP').textContent = status;
+}
+
 function startCallTimer(){
   if(callTimerInt)return; // уже запущен
   callStartTime=Date.now();
   setCallStatus('Идёт звонок');
   callTimerInt=setInterval(()=>{
     const s=Math.floor((Date.now()-callStartTime)/1000);
-    $('callTimer').textContent=fmtDuration(s);
+    const t=fmtDuration(s);
+    $('callTimer').textContent=t;
+    if($('callTimerP'))$('callTimerP').textContent=t;
   },1000);
   startQualityMonitor();
 }
@@ -2264,6 +2339,7 @@ async function handleSignal(data){
     }
     // Входящий звонок — показываем баннер
     pendingOffer=data;pendingCallerId=fromUid;pendingCallerName=data.name||'Собеседник';
+    pendingCallerAvatar=members[fromUid]?.avatar||'';
     $('incomingCallerName').textContent=`${pendingCallerName} — ${data.withVideo?'📹 видео':'📞 голос'}`;
     $('incomingCallBanner').classList.add('show');
     showIncomingCallNotification(pendingCallerName);
