@@ -1851,10 +1851,10 @@ async function acceptCall(){
   pendingOffer=null;pendingCallerId=null;
 }
 
-function declineCall(){
+async function declineCall(){
   $('incomingCallBanner').classList.remove('show');
   if(pendingCallerId){
-    publishRaw('signal',encrypt(JSON.stringify({type:'decline',id:myId,name:myName,targetUid:pendingCallerId})));
+    publishRaw('signal',await encrypt(JSON.stringify({type:'decline',id:myId,name:myName,targetUid:pendingCallerId})));
   }
   pendingOffer=null;pendingCallerId=null;
 }
