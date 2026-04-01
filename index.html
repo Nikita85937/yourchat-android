@@ -2867,11 +2867,18 @@ function initThemeGrid(){
     };
     grid.appendChild(div);
   });
-  // Применяем сохранённую тему
-  applyTheme(currentTheme);
+  // Применяем тему только если у пользователя есть премиум
+  if(isPremium){
+    applyTheme(currentTheme);
+  } else {
+    applyTheme('dark');
+  }
 }
 
 async function checkPremiumStatus(uid){
+  // Сбрасываем статус перед проверкой — важно при смене аккаунта
+  isPremium = false;
+  updatePremiumUI();
   if(!uid) return;
   try{
     const doc = await fbDb.collection('premium').doc(uid).get();
@@ -2884,6 +2891,8 @@ async function checkPremiumStatus(uid){
       }
     }
   }catch(e){}
+  // Обновляем грид тем и применяем правильную тему после проверки премиума
+  initThemeGrid();
 }
 
 function updatePremiumUI(){
