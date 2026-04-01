@@ -1172,12 +1172,12 @@ async function sendTypingSignal(){
   if(!client||!client.isConnected())return;
   if(!isTyping){
     isTyping=true;
-    publishRaw('typing',await encrypt(JSON.stringify({type:'typing_start',id:myId,name:myName,color:myColor})));
+    publishRaw('presence',await encrypt(JSON.stringify({type:'typing_start',id:myId,name:myName,color:myColor})));
   }
   clearTimeout(typingTimeout);
   typingTimeout=setTimeout(async()=>{
     isTyping=false;
-    publishRaw('typing',await encrypt(JSON.stringify({type:'typing_stop',id:myId,name:myName})));
+    publishRaw('presence',await encrypt(JSON.stringify({type:'typing_stop',id:myId,name:myName})));
   },2500);
 }
 
@@ -2250,7 +2250,6 @@ function onConnected(){
   client.subscribe(getTopic('file'));
   client.subscribe(getTopic('voice'));
   client.subscribe(getTopic('signal'));
-  client.subscribe(getTopic('typing'));
   publishPresence(isReconnecting ? 'here' : 'join');
   // Ping каждые 20 сек — и обновляет активность
   clearInterval(pingInterval);
@@ -2334,10 +2333,9 @@ async function onMessage(rawMsg){
 
   if(topic===getTopic('signal')){handleSignal(data);}
 
-  if(topic===getTopic('typing')){handleTyping(data);}
-
   if(topic===getTopic('presence')){
     const{type,id,name,color}=data;if(id===myId)return;
+    if(type==='typing_start'||type==='typing_stop'){handleTyping(data);return;}
     if(type==='join'){members[id]={name,color,avatar:data.avatar||'',uid:data.uid||id,muted:data.muted||false};updateMembersBar();appendSys(`→ ${name} зашёл в чат`);publishPresence('here');}
     else if(type==='here'){if(!members[id]){members[id]={name,color,avatar:data.avatar||'',uid:data.uid||id,muted:data.muted||false};updateMembersBar();}else{members[id].muted=data.muted||false;updateMembersBar();}}
     else if(type==='leave'){const mn=members[id]?.name||'???';delete members[id];updateMembersBar();appendSys(`← ${mn} вышел`);}
