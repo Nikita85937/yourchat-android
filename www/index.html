@@ -730,6 +730,22 @@ function formatTime(ts){return new Date(ts).toLocaleTimeString('ru',{hour:'2-dig
 function getInitial(n){return n.charAt(0).toUpperCase();}
 function generateId(){return Math.random().toString(36).substr(2,9);}
 function getColor(id){const h=[...id].reduce((s,c)=>s+c.charCodeAt(0),0);return COLORS[h%COLORS.length];}
+// Универсальная установка аватара: если это base64/URL — рисуем <img>, иначе эмодзи/буква
+function setAvatar(el, avatar, name, color){
+  el.textContent='';
+  if(avatar && (avatar.startsWith('data:') || avatar.startsWith('http'))){
+    el.style.background='transparent';
+    el.style.border='none';
+    const img=document.createElement('img');
+    img.src=avatar;
+    img.style.cssText='width:100%;height:100%;border-radius:50%;object-fit:cover;display:block;';
+    img.onerror=()=>{el.removeChild(img);el.textContent=name?name.charAt(0).toUpperCase():'?';if(color){el.style.background=color+'22';el.style.border=`1px solid ${color}44`;}};
+    el.appendChild(img);
+  } else {
+    el.textContent=avatar||( name?name.charAt(0).toUpperCase():'?');
+    if(color){el.style.background=color+'22';el.style.border=`1px solid ${color}44`;}
+  }
+}
 function formatBytes(b){if(b<1024)return b+' Б';if(b<1048576)return(b/1024).toFixed(1)+' КБ';return(b/1048576).toFixed(1)+' МБ';}
 function isImage(name){return /\.(jpe?g|png|gif|webp|bmp)$/i.test(name);}
 function fileIcon(name){
@@ -1014,8 +1030,8 @@ function makeBubble(data){
   const color=data.color||getColor(data.id||'0');
   const w=document.createElement('div');w.className='msg'+(isMine?' mine':'');
   const av=document.createElement('div');av.className='msg-avatar';
-  av.textContent=data.avatar||getInitial(data.name);
-  av.style.cssText=`background:${color}22;color:${color};border:1px solid ${color}44;cursor:pointer;`;
+  av.style.cssText=`color:${color};cursor:pointer;`;
+  setAvatar(av, data.avatar, data.name, color);
   av.title='Посмотреть профиль';
   av.onclick=()=>viewProfile(data.id,data.name,color,data.avatar);
   const b=document.createElement('div');b.className='msg-bubble';
@@ -2457,9 +2473,8 @@ function enterWithProfile(profile){
   checkPremiumStatus(myUid);
   // Fill profile bar
   const av=$('loginBarAv');
-  av.textContent=profile.avatar||profile.name.charAt(0).toUpperCase();
-  av.style.background=(profile.color||'#4f8ef7')+'22';
-  av.style.border=`2px solid ${(profile.color||'#4f8ef7')}44`;
+  setAvatar(av, profile.customAvatar||profile.avatar, profile.name, profile.color||'#4f8ef7');
+  if(!av.querySelector('img')){av.style.background=(profile.color||'#4f8ef7')+'22';av.style.border=`2px solid ${(profile.color||'#4f8ef7')}44`;}
   $('loginBarName').textContent=profile.name;
   $('authScreen').style.display='none';
   $('loginScreen').style.display='flex';
@@ -2698,9 +2713,9 @@ function openSettings(){
   if(!raw) return;
   myProfile = JSON.parse(raw);
   const av = $('settingsAvatar');
-  av.textContent = myProfile.avatar || myProfile.name.charAt(0);
-  av.style.background = (myProfile.color||'#4f8ef7')+'22';
-  av.style.border = `2px solid ${(myProfile.color||'#4f8ef7')}44`;
+  setAvatar(av, myProfile.customAvatar||myProfile.avatar, myProfile.name, myProfile.color||'#4f8ef7');
+  av.style.background = av.style.background || (myProfile.color||'#4f8ef7')+'22';
+  av.style.border = av.style.border || `2px solid ${(myProfile.color||'#4f8ef7')}44`;
   $('settingsName').textContent = myProfile.name;
   $('settingsBio').value = myProfile.bio || '';
   $('settingsEmail').textContent = myProfile.email || '—';
@@ -2744,9 +2759,9 @@ async function viewProfile(userId, name, color, avatar){
   // Если это мы сами — открываем настройки
   if(userId === myUid || userId === myId){ openSettings(); return; }
   // Ищем в Firestore
-  $('vpAvatar').textContent = avatar || name.charAt(0).toUpperCase();
-  $('vpAvatar').style.background = (color||'#4f8ef7')+'22';
-  $('vpAvatar').style.border = `2px solid ${(color||'#4f8ef7')}44`;
+  setAvatar($('vpAvatar'), avatar, name, color||'#4f8ef7');
+  $('vpAvatar').style.background = $('vpAvatar').style.background || (color||'#4f8ef7')+'22';
+  $('vpAvatar').style.border = $('vpAvatar').style.border || `2px solid ${(color||'#4f8ef7')}44`;
   $('vpName').textContent = name;
   $('vpBio').textContent = 'Загрузка...';
   $('vpCountry').textContent = '...';
