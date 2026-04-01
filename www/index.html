@@ -126,6 +126,24 @@
 
   /* Progress */
   .upload-msg{background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:10px 12px;font-size:.78rem;color:var(--muted);}
+
+  /* LINK PREVIEW */
+  .msg-link-text{word-break:break-word;line-height:1.5;}
+  .msg-link-text a{color:var(--accent);text-decoration:none;}
+  .msg-link-text a:hover{text-decoration:underline;}
+  .link-preview{margin-top:8px;border-radius:12px;overflow:hidden;border:1px solid var(--border);background:var(--surface2);max-width:100%;}
+  .link-preview-yt iframe{width:100%;aspect-ratio:16/9;display:block;border:none;}
+  .link-preview-tg{display:flex;align-items:center;gap:10px;padding:10px 12px;cursor:pointer;transition:background .2s;text-decoration:none;color:inherit;}
+  .link-preview-tg:hover{background:var(--surface);}
+  .link-preview-tg-icon{font-size:1.6rem;flex-shrink:0;}
+  .link-preview-tg-text{flex:1;min-width:0;}
+  .link-preview-tg-title{font-size:.82rem;font-weight:bold;color:var(--accent);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .link-preview-tg-url{font-size:.68rem;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .link-preview-generic{display:flex;align-items:center;gap:10px;padding:10px 12px;cursor:pointer;transition:background .2s;text-decoration:none;color:inherit;}
+  .link-preview-generic:hover{background:var(--surface);}
+  .link-preview-generic-icon{font-size:1.2rem;flex-shrink:0;opacity:.7;}
+  .link-preview-generic-text{flex:1;min-width:0;}
+  .link-preview-generic-url{font-size:.72rem;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
   .prog-wrap{width:100%;height:4px;background:var(--border);border-radius:4px;margin-top:6px;overflow:hidden;}
   .prog-bar{height:100%;background:var(--accent);border-radius:4px;transition:width .15s;}
 
@@ -785,15 +803,6 @@ async function decrypt(b64){
 
 let callEncryptKey = null; // exportable CryptoKey для использования в Worker
 
-async function deriveCallKey(password, room) {
-  // Отдельный подключ для медиа — чтобы не путать с текстовым ключом
-  const km = await crypto.subtle.importKey('raw', new TextEncoder().encode(password), {name:'PBKDF2'}, false, ['deriveKey']);
-  return crypto.subtle.deriveKey(
-    {name:'PBKDF2', salt: new TextEncoder().encode('call:'+room), iterations: 50000, hash:'SHA-256'},
-    km, {name:'AES-GCM', length:256}, true, ['encrypt','decrypt']
-  );
-}
-
 // Inline Worker для шифрования/дешифрования RTP фреймов
 function makeCallWorkerBlob() {
   const code = `
@@ -1073,11 +1082,80 @@ async function deleteMessageForAll(msgId,el){
   }
 }
 
+// ===== LINK DETECTION & PREVIEW =====
+function extractUrls(text){
+  const re=/https?:\/\/[^\s<>"']+/gi;
+  return [...new Set(text.match(re)||[])];
+}
+function getYouTubeId(url){
+  const m=url.match(/(?:youtu\.be\/|youtube\.com\/(?:watch\?v=|embed\/|shorts\/|v\/))([A-Za-z0-9_\-]{11})/);
+  return m?m[1]:null;
+}
+function getTelegramLink(url){
+  const m=url.match(/^https?:\/\/t\.me\/([\w@+][^\s]*)/);
+  return m?m[1]:null;
+}
+
+function renderTextWithLinks(text){
+  const urls=extractUrls(text);
+  if(!urls.length){const d=document.createElement('div');d.className='msg-link-text';d.textContent=text;return d;}
+  const d=document.createElement('div');d.className='msg-link-text';
+  let html=text.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  urls.forEach(url=>{
+    const safeUrl=url.replace(/&/g,'&amp;');
+    html=html.replace(safeUrl,'<a href="'+safeUrl+'" target="_blank" rel="noopener noreferrer">'+safeUrl+'</a>');
+  });
+  d.innerHTML=html;return d;
+}
+
+function buildLinkPreview(text){
+  const urls=extractUrls(text);
+  if(!urls.length)return null;
+  const url=urls[0];
+
+  const ytId=getYouTubeId(url);
+  if(ytId){
+    const wrap=document.createElement('div');wrap.className='link-preview link-preview-yt';
+    const iframe=document.createElement('iframe');
+    iframe.src='https://www.youtube.com/embed/'+ytId;
+    iframe.allowFullscreen=true;
+    iframe.allow='accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture';
+    iframe.loading='lazy';
+    wrap.appendChild(iframe);return wrap;
+  }
+
+  const tgPath=getTelegramLink(url);
+  if(tgPath){
+    const wrap=document.createElement('div');wrap.className='link-preview';
+    const a=document.createElement('a');a.className='link-preview-tg';a.href=url;a.target='_blank';a.rel='noopener noreferrer';
+    a.innerHTML='<span class="link-preview-tg-icon">\u2708\ufe0f</span><span class="link-preview-tg-text"><div class="link-preview-tg-title">Telegram: '+tgPath+'</div><div class="link-preview-tg-url">'+url+'</div></span>';
+    wrap.appendChild(a);return wrap;
+  }
+
+  let favicon='\ud83d\udd17';
+  try{
+    const host=new URL(url).hostname;
+    if(host.includes('github'))favicon='\ud83d\udc19';
+    else if(host.includes('twitter')||host.includes('x.com'))favicon='\ud83d\udc26';
+    else if(host.includes('vk.com'))favicon='\ud83d\udc99';
+    else if(host.includes('instagram'))favicon='\ud83d\udcf8';
+    else if(host.includes('tiktok'))favicon='\ud83c\udfb5';
+    else if(host.includes('twitch'))favicon='\ud83c\udfae';
+  }catch(e){}
+  const wrap=document.createElement('div');wrap.className='link-preview';
+  const a=document.createElement('a');a.className='link-preview-generic';a.href=url;a.target='_blank';a.rel='noopener noreferrer';
+  let displayUrl=url;try{const u=new URL(url);displayUrl=u.hostname+u.pathname;}catch(e){}
+  a.innerHTML='<span class="link-preview-generic-icon">'+favicon+'</span><span class="link-preview-generic-text"><div class="link-preview-generic-url">'+displayUrl+'</div></span>';
+  wrap.appendChild(a);return wrap;
+}
+
 function appendMessage(data,save=true){
   const{w,av,b,isMine}=makeBubble(data);
   const msgId=data.msgId||(data.ts+'_'+data.id);
   w.dataset.msgId=msgId;
-  const el=document.createElement('div');el.textContent=data.text;b.appendChild(el);
+  b.appendChild(renderTextWithLinks(data.text));
+  const preview=buildLinkPreview(data.text);
+  if(preview)b.appendChild(preview);
   finishBubble(w,av,b,data.ts,msgId,isMine);
   if(save)saveMessageToHistory({...data,msgId});
 }
