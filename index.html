@@ -40,8 +40,31 @@
   .divider-line{flex:1;height:1px;background:var(--border);}
   .divider-text{font-size:.7rem;color:var(--muted);}
 
-  /* LOGIN */
-  #loginScreen{display:flex;flex-direction:column;align-items:center;justify-content:center;height:100dvh;gap:20px;padding:24px;background:radial-gradient(ellipse at 50% 40%,#1a2040 0%,var(--bg) 70%);}
+  /* LOGIN SCREEN — двухколоночный layout */
+  #loginScreen{display:none;flex-direction:column;align-items:center;min-height:100dvh;padding:24px 16px 32px;gap:20px;background:radial-gradient(ellipse at 50% 30%,#1a2040 0%,var(--bg) 70%);overflow-y:auto;}
+  .ls-top{display:flex;flex-direction:column;align-items:center;gap:12px;width:100%;}
+  #loginProfileBar{display:flex;align-items:center;gap:10px;background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:10px 16px;width:100%;max-width:760px;}
+  #loginBarAv{width:34px;height:34px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:1rem;flex-shrink:0;}
+
+  /* Двухколоночная зона */
+  .ls-cols{display:flex;flex-direction:column;gap:20px;width:100%;max-width:760px;}
+  .ls-col{display:flex;flex-direction:column;gap:10px;flex:1;}
+  .ls-col-label{font-size:.72rem;color:var(--muted);text-transform:uppercase;letter-spacing:.1em;padding:0 2px;}
+  .ls-card{width:100%!important;max-width:100%!important;}
+  .ls-saved{width:100%!important;max-width:100%!important;}
+  .ls-vsep{display:none;}/* скрыт на мобилке */
+  .vr-hint-row{display:flex;align-items:center;gap:8px;padding:8px 10px;background:var(--surface2);border:1px dashed var(--border);border-radius:10px;font-size:.75rem;color:var(--muted);line-height:1.4;}
+
+  /* Десктоп — горизонтальные колонки */
+  @media(min-width:700px){
+    .ls-cols{flex-direction:row;align-items:flex-start;gap:0;}
+    .ls-vsep{display:block;width:1px;background:var(--border);margin:0 24px;align-self:stretch;flex-shrink:0;}
+    #loginScreen{padding:32px 32px 40px;}
+    #loginProfileBar{max-width:760px;}
+  }
+  @media(min-width:1024px){
+    #loginScreen{padding:40px 80px 48px;}
+  }
   .logo{font-size:2.2rem;font-weight:bold;letter-spacing:-1px;background:linear-gradient(135deg,var(--accent),var(--accent2));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;}
   .subtitle{color:var(--muted);font-size:0.8rem;text-align:center;max-width:280px;line-height:1.6;}
   .card{background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:28px 24px;width:100%;max-width:360px;display:flex;flex-direction:column;gap:14px;}
@@ -340,6 +363,70 @@
   .typing-dots span:nth-child(2){animation-delay:.2s;}
   .typing-dots span:nth-child(3){animation-delay:.4s;}
   @keyframes typingBounce{0%,60%,100%{transform:translateY(0);opacity:.4;}30%{transform:translateY(-4px);opacity:1;}}
+
+  /* ===== ВИДЕО-КОМНАТЫ ===== */
+  .video-room-card{background:var(--surface);border:1px solid var(--border);border-radius:16px;padding:20px 24px;display:flex;flex-direction:column;gap:12px;}
+  .btn-video{background:linear-gradient(135deg,#f7645a,#f7a020);border:none;border-radius:10px;padding:11px;color:#fff;font-family:var(--font);font-size:.9rem;font-weight:bold;cursor:pointer;width:100%;letter-spacing:.05em;transition:opacity .2s,transform .1s;}
+  .btn-video:hover{opacity:.9;}.btn-video:active{transform:scale(.98);}
+
+  /* Saved video rooms */
+  .saved-video-rooms{display:flex;flex-direction:column;gap:8px;width:100%;max-width:360px;}
+  .saved-video-room-btn{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:10px 14px;color:var(--text);font-family:var(--font);font-size:.82rem;cursor:pointer;text-align:left;transition:border-color .2s;display:flex;justify-content:space-between;align-items:center;gap:8px;}
+  .saved-video-room-btn:hover{border-color:#f7645a;}
+  .saved-vr-info{flex:1;min-width:0;}
+  .saved-vr-name{font-size:.8rem;font-weight:bold;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .saved-vr-url{font-size:.65rem;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:2px;}
+  .saved-vr-platform{font-size:.8rem;flex-shrink:0;}
+  .saved-vr-del{background:none;border:none;color:var(--red);cursor:pointer;padding:2px 6px;font-size:.75rem;opacity:.6;flex-shrink:0;}
+  .saved-vr-del:hover{opacity:1;}
+
+  /* VIDEO ROOM OVERLAY */
+  #videoRoomOverlay{display:none;position:fixed;inset:0;background:var(--bg);z-index:200;flex-direction:column;}
+  #videoRoomOverlay.show{display:flex;}
+  .vro-header{background:var(--surface);border-bottom:1px solid var(--border);padding:10px 16px;display:flex;align-items:center;justify-content:space-between;flex-shrink:0;padding-top:calc(10px + env(safe-area-inset-top));}
+  .vro-title{display:flex;align-items:center;gap:8px;min-width:0;}
+  .vro-title-text{font-size:.9rem;font-weight:bold;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .vro-platform-badge{display:inline-flex;align-items:center;gap:5px;font-size:.68rem;padding:3px 8px;border-radius:6px;font-weight:bold;letter-spacing:.03em;flex-shrink:0;}
+  .vro-platform-badge.yt{background:#ff000018;color:#ff5555;border:1px solid #ff444430;}
+  .vro-platform-badge.vk{background:#2787f518;color:#5aacff;border:1px solid #2787f530;}
+  .vro-platform-badge.rt{background:#E8103C18;color:#E8103C;border:1px solid #E8103C30;}
+  .vro-actions{display:flex;gap:6px;flex-shrink:0;}
+  .vro-btn{background:none;border:1px solid var(--border);border-radius:8px;color:var(--muted);font-family:var(--font);font-size:.75rem;padding:5px 10px;cursor:pointer;transition:all .2s;white-space:nowrap;}
+  .vro-btn:hover{border-color:var(--accent);color:var(--accent);}
+  .vro-btn.danger:hover{border-color:var(--red);color:var(--red);}
+  .vro-player{flex:1;background:#000;display:flex;align-items:center;justify-content:center;position:relative;overflow:hidden;}
+  .vro-player iframe{width:100%;height:100%;border:none;display:block;}
+  .vro-player-placeholder{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;color:var(--muted);font-size:.85rem;text-align:center;padding:24px;}
+  .vro-player-placeholder-icon{font-size:3rem;}
+  .vro-chat{background:var(--surface);border-top:1px solid var(--border);display:flex;flex-direction:column;height:220px;flex-shrink:0;}
+  .vro-chat-msgs{flex:1;overflow-y:auto;padding:8px 12px;display:flex;flex-direction:column;gap:4px;}
+  .vro-chat-msgs::-webkit-scrollbar{width:3px;}
+  .vro-chat-msgs::-webkit-scrollbar-thumb{background:var(--border);border-radius:3px;}
+  .vro-msg{font-size:.78rem;line-height:1.4;}
+  .vro-msg-name{font-weight:bold;margin-right:4px;}
+  .vro-msg-sys{font-size:.68rem;color:var(--muted);font-style:italic;text-align:center;padding:2px 0;}
+  .vro-input-row{display:flex;gap:6px;padding:8px 10px;border-top:1px solid var(--border);flex-shrink:0;}
+  .vro-input{flex:1;background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:8px 12px;color:var(--text);font-family:var(--font);font-size:.82rem;outline:none;transition:border-color .2s;}
+  .vro-input:focus{border-color:var(--accent);}
+  .vro-input::placeholder{color:var(--muted);}
+  .vro-send-btn{background:linear-gradient(135deg,var(--accent),var(--accent2));border:none;border-radius:10px;width:38px;height:38px;color:#fff;cursor:pointer;display:flex;align-items:center;justify-content:center;font-size:1rem;flex-shrink:0;transition:opacity .2s;}
+  .vro-send-btn:hover{opacity:.88;}
+
+  /* Video room URL edit bar */
+  .vro-url-bar{background:var(--surface2);border-bottom:1px solid var(--border);padding:8px 12px;display:flex;flex-direction:column;gap:6px;flex-shrink:0;}
+  .vro-platform-tabs{display:flex;gap:6px;}
+  .vro-ptab{flex:1;padding:8px 6px;border:none;border-radius:9px;background:var(--surface);color:var(--muted);font-family:var(--font);font-size:.75rem;cursor:pointer;transition:all .2s;border:1px solid var(--border);display:flex;align-items:center;justify-content:center;gap:6px;font-weight:500;}
+  .vro-ptab svg{flex-shrink:0;}
+  .vro-ptab.active{background:var(--surface2);color:var(--text);border-color:var(--accent);box-shadow:0 0 0 1px var(--accent)22;}
+  .vro-ptab:hover{border-color:var(--accent);color:var(--text);}
+  .vro-url-row{display:flex;gap:6px;}
+  .vro-url-input{flex:1;background:var(--bg);border:1px solid var(--border);border-radius:8px;padding:8px 10px;color:var(--text);font-family:var(--font);font-size:.8rem;outline:none;transition:border-color .2s;}
+  .vro-url-input:focus{border-color:var(--accent);}
+  .vro-url-apply{background:var(--accent);border:none;border-radius:8px;padding:8px 14px;color:#fff;font-family:var(--font);font-size:.75rem;font-weight:bold;cursor:pointer;white-space:nowrap;transition:opacity .2s;}
+  .vro-url-apply:hover{opacity:.88;}
+  @media(min-width:600px){
+    .vro-chat{height:260px;}
+  }
 </style>
 </head>
 <body>
@@ -394,24 +481,122 @@
 </div>
 
 <div id="loginScreen">
-  <div class="logo">◈ Свой чат</div>
-  <div id="loginProfileBar" style="display:flex;align-items:center;gap:10px;background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:10px 16px;width:100%;max-width:360px;">
-    <div id="loginBarAv" style="width:34px;height:34px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:1rem;flex-shrink:0;"></div>
-    <div style="flex:1"><div id="loginBarName" style="font-size:.9rem;font-weight:bold;"></div><div style="font-size:.68rem;color:var(--muted);">твой аккаунт</div></div>
-    <button onclick="goBackToAuth()" style="background:none;border:none;color:var(--muted);font-size:.75rem;cursor:pointer;font-family:var(--font);">сменить</button>
+  <!-- Шапка — логотип + профиль бар, всегда сверху по центру -->
+  <div class="ls-top">
+    <div class="logo">◈ Свой чат</div>
+    <div id="loginProfileBar">
+      <div id="loginBarAv"></div>
+      <div style="flex:1"><div id="loginBarName" style="font-size:.9rem;font-weight:bold;"></div><div style="font-size:.68rem;color:var(--muted);">твой аккаунт</div></div>
+      <button onclick="goBackToAuth()" style="background:none;border:none;color:var(--muted);font-size:.75rem;cursor:pointer;font-family:var(--font);">сменить</button>
+    </div>
+    <div class="subtitle">Выбери обычную комнату или видео-комнату.</div>
   </div>
-  <div class="subtitle">Войди в аккаунт и выбери комнату.</div>
-  <div class="card">
-    <div><label>Твоё имя</label><input id="nameInput" type="text" placeholder="Введи имя..." maxlength="20" autocomplete="off"></div>
-    <div><label>Название комнаты</label><input id="roomInput" type="text" placeholder="Например: друзья2025" maxlength="40" autocomplete="off"></div>
-    <div><label>Пароль комнаты</label><input id="passInput" type="password" placeholder="Общий пароль для всех..." maxlength="100"></div>
-    <button class="btn" id="joinBtn" onclick="joinChat()">Войти в чат →</button>
-  </div>
-  <div id="savedRoomsSection" class="saved-rooms" style="display:none;">
-    <div class="saved-label">Недавние комнаты</div>
-    <div id="savedRoomsList"></div>
-  </div>
+
+  <!-- Двухколоночная зона -->
+  <div class="ls-cols">
+
+    <!-- ЛЕВАЯ КОЛОНКА — обычные комнаты -->
+    <div class="ls-col ls-col-chat">
+      <div class="ls-col-label">💬 Чат</div>
+      <div class="card ls-card">
+        <div><label>Твоё имя</label><input id="nameInput" type="text" placeholder="Введи имя..." maxlength="20" autocomplete="off"></div>
+        <div><label>Название комнаты</label><input id="roomInput" type="text" placeholder="Например: друзья2025" maxlength="40" autocomplete="off"></div>
+        <div><label>Пароль комнаты</label><input id="passInput" type="password" placeholder="Общий пароль для всех..." maxlength="100"></div>
+        <button class="btn" id="joinBtn" onclick="joinChat()">Войти в чат →</button>
+      </div>
+      <div id="savedRoomsSection" class="saved-rooms ls-saved" style="display:none;">
+        <div class="saved-label">Недавние</div>
+        <div id="savedRoomsList"></div>
+      </div>
+    </div>
+
+    <!-- ВЕРТИКАЛЬНЫЙ РАЗДЕЛИТЕЛЬ (только на десктопе) -->
+    <div class="ls-vsep"></div>
+
+    <!-- ПРАВАЯ КОЛОНКА — видео-комнаты -->
+    <div class="ls-col ls-col-video">
+      <div class="ls-col-label">🎬 Видео-комнаты</div>
+      <div class="video-room-card ls-card">
+        <div><label>Название видео-комнаты</label><input id="vrNameInput" type="text" placeholder="Например: кино-вечер" maxlength="40" autocomplete="off"></div>
+        <div><label>Пароль комнаты</label><input id="vrPassInput" type="password" placeholder="Общий пароль для всех..." maxlength="100"></div>
+        <div class="vr-hint-row">
+          <span>🔗 Ссылку на видео добавишь внутри комнаты</span>
+        </div>
+        <button class="btn-video" onclick="joinVideoRoom()">🎬 Войти в видео-комнату →</button>
+      </div>
+      <div id="savedVideoRoomsSection" class="saved-video-rooms ls-saved" style="display:none;">
+        <div class="saved-label">Недавние</div>
+        <div id="savedVideoRoomsList"></div>
+      </div>
+    </div>
+
+  </div><!-- /ls-cols -->
+
   <div class="hint">Поделись приложением с друзьями! Введите одинаковые <b>комнату</b> и <b>пароль</b>.<br>🔒 Сообщения зашифрованы. Голосовые + Звонки.</div>
+</div>
+
+<!-- VIDEO ROOM OVERLAY -->
+<div id="videoRoomOverlay">
+  <div class="vro-header">
+    <div class="vro-title">
+      <div class="vro-title-text" id="vroTitle">Видео-комната</div>
+      <span class="vro-platform-badge" id="vroPlatformBadge">YT</span>
+    </div>
+    <div class="vro-actions">
+      <button class="vro-btn" onclick="openVroUrlBar()" title="Сменить видео">🔗 Видео</button>
+      <button class="vro-btn danger" onclick="leaveVideoRoom()">Выйти</button>
+    </div>
+  </div>
+  <!-- URL bar (скрыт по умолчанию) -->
+  <div id="vroUrlBar" style="display:none;" class="vro-url-bar">
+    <div class="vro-platform-tabs">
+      <!-- YouTube -->
+      <button class="vro-ptab active" id="vroTabYT" onclick="selectVrPlatform('yt')">
+        <svg width="18" height="13" viewBox="0 0 18 13" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <rect width="18" height="13" rx="3" fill="#FF0000"/>
+          <polygon points="7,3.5 7,9.5 13,6.5" fill="white"/>
+        </svg>
+        YouTube
+      </button>
+      <!-- ВК Видео -->
+      <button class="vro-ptab" id="vroTabVK" onclick="selectVrPlatform('vk')">
+        <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <rect width="20" height="20" rx="5" fill="#2787F5"/>
+          <rect x="3" y="3" width="14" height="14" rx="4" fill="#FF3347"/>
+          <polygon points="8,6.5 8,13.5 14.5,10" fill="white"/>
+        </svg>
+        ВК Видео
+      </button>
+      <!-- Rutube -->
+      <button class="vro-ptab" id="vroTabRT" onclick="selectVrPlatform('rt')">
+        <svg width="18" height="18" viewBox="0 0 18 18" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <rect width="18" height="18" rx="4" fill="#1A1F3C"/>
+          <path d="M13.5 4.5 Q17 4.5 17 8 Q17 11.5 13.5 11.5" fill="#E8103C"/>
+          <rect x="1" y="1" width="13" height="16" rx="3.5" fill="#1A1F3C"/>
+          <text x="2.5" y="13" font-size="10" font-weight="bold" font-family="Arial,sans-serif" fill="white">R</text>
+        </svg>
+        Rutube
+      </button>
+    </div>
+    <div class="vro-url-row">
+      <input class="vro-url-input" id="vroUrlInput" type="text" placeholder="Вставь ссылку YouTube / ВК Видео / Rutube...">
+      <button class="vro-url-apply" onclick="applyVroUrl()">Применить</button>
+    </div>
+  </div>
+  <div class="vro-player" id="vroPlayer">
+    <div class="vro-player-placeholder" id="vroPlaceholder">
+      <div class="vro-player-placeholder-icon">🎬</div>
+      <div>Видео не выбрано</div>
+      <div style="font-size:.72rem;margin-top:4px;">Нажми «🔗 Видео» и вставь ссылку<br>YouTube, ВК Видео или Rutube</div>
+    </div>
+  </div>
+  <div class="vro-chat">
+    <div class="vro-chat-msgs" id="vroChatMsgs"></div>
+    <div class="vro-input-row">
+      <input class="vro-input" id="vroChatInput" type="text" placeholder="Написать в чат комнаты..." maxlength="300" onkeydown="if(event.key==='Enter')sendVroChatMsg()">
+      <button class="vro-send-btn" onclick="sendVroChatMsg()">➤</button>
+    </div>
+  </div>
 </div>
 
 <div id="chatScreen">
@@ -654,14 +839,19 @@ async function releaseWakeLock(){
   try{if(wakeLock){await wakeLock.release();wakeLock=null;}}catch(e){}
 }
 // Переполучить WakeLock и восстановить соединения если страница снова видима
+let appInBackground = false;
 document.addEventListener('visibilitychange',async()=>{
   if(document.visibilityState==='hidden'){
+    appInBackground = true;
     // Уходим в фон — запускаем PiP если идёт видеозвонок
     if(isVideoCall&&localStream&&peerConn){
       autoPiP();
     }
+    // Обновляем lastMqttActivity чтобы watchdog не срабатывал в фоне
+    lastMqttActivity = Date.now();
   }
   if(document.visibilityState==='visible'){
+    appInBackground = false;
     // Восстановить wake lock
     if(localStream)await requestWakeLock();
     // Разбудить AudioContext (iOS приостанавливает его)
@@ -675,9 +865,15 @@ document.addEventListener('visibilitychange',async()=>{
         try{peerConn.restartIce();}catch(e){}
       }
     }
-    // Проверить MQTT — если упал пока были в фоне
-    if(client&&!client.isConnected()&&myRoom){
-      scheduleReconnect();
+    // Проверить MQTT — только если РЕАЛЬНО отключено (не просто был в фоне)
+    if(myRoom){
+      if(client&&client.isConnected()){
+        // Соединение живое — просто обновляем метку активности, ничего не делаем
+        lastMqttActivity=Date.now();
+      } else if(!reconnectTimer&&!isReconnecting){
+        // Соединение реально упало — переподключаемся
+        scheduleReconnect();
+      }
     }
   }
 });
@@ -1705,6 +1901,10 @@ async function startCall(withVideo=false){
   if(Object.keys(members).length===0){showToast('Никого нет в комнате');return;}
   if(inCall){showToast('Звонок уже идёт');return;}
   isVideoCall=withVideo;
+  // Запускаем Foreground Service — держит звонок живым в фоне
+  if(window.Capacitor&&window.Capacitor.isNativePlatform()){
+    try{Capacitor.Plugins.CallService.startCallService();}catch(e){}
+  }
   try{
     localStream=await navigator.mediaDevices.getUserMedia({
       audio:{echoCancellation:true,noiseSuppression:true,autoGainControl:true,latency:0,channelCount:1,sampleRate:16000},
@@ -1940,6 +2140,10 @@ async function declineCall(){
 function endCall(fromRemote=false){
   if(callEnding)return;
   callEnding=true;
+  // Останавливаем Foreground Service
+  if(window.Capacitor&&window.Capacitor.isNativePlatform()){
+    try{Capacitor.Plugins.CallService.stopCallService();}catch(e){}
+  }
   clearTimeout(disconnectWatchdog);disconnectWatchdog=null;
   clearTimeout(autoRedialTimer);autoRedialTimer=null;
   autoRedialCount=0;
@@ -2305,13 +2509,19 @@ function connect(isFirst=false){
   client.onConnectionLost=r=>{
     $('statusDot').className='offline';
     clearInterval(pingInterval);clearInterval(watchdogInterval);
-    if(r.errorCode!==0){appendSys('⚠ Соединение потеряно. Переподключение...');scheduleReconnect();}
+    if(r.errorCode!==0){
+      // Если приложение в фоне — переподключаемся тихо, без системного сообщения
+      if(!appInBackground){
+        appendSys('⚠ Соединение потеряно. Переподключение...');
+      }
+      scheduleReconnect();
+    }
   };
   client.onMessageArrived=msg=>{lastMqttActivity=Date.now();onMessage(msg);};
   client.connect({
     useSSL:true,
-    keepAliveInterval:20,  // уменьшили с 30 до 20 — быстрее детектим разрыв
-    cleanSession:true,
+    keepAliveInterval:30,
+    cleanSession:false,
     onSuccess:onConnected,
     onFailure:err=>{
       $('connectingOverlay').classList.remove('show');
@@ -2352,13 +2562,14 @@ function onConnected(){
     publishPresence('ping_tick');
     lastMqttActivity=Date.now(); // сам факт отправки ping — признак живого соединения
   },20000);
-  // Watchdog: если 90 сек нет активности — форсируем reconnect
-  // (90 сек вместо 45 — чтобы не рвать соединение при фоновом режиме телефона)
+  // Watchdog: если 3 минуты нет активности И мы на переднем плане — форсируем reconnect
+  // (не срабатывает в фоне — телефон просто замораживает JS-таймеры)
   clearInterval(watchdogInterval);
   watchdogInterval=setInterval(()=>{
     if(!client||!client.isConnected()){return;}
+    if(appInBackground){lastMqttActivity=Date.now();return;} // в фоне — не трогаем
     const idle=Date.now()-lastMqttActivity;
-    if(idle>120000){
+    if(idle>180000){
       appendSys('⚠ Нет активности. Переподключение...');
       $('statusDot').className='offline';
       clearInterval(pingInterval);clearInterval(watchdogInterval);
@@ -2367,7 +2578,9 @@ function onConnected(){
   },15000);
 
   if(isReconnecting){
-    appendSys('✓ Переподключено.');
+    if(!appInBackground){
+      appendSys('✓ Переподключено.');
+    }
     isReconnecting=false;
     flushOutbox(); // отправляем отложенное сообщение если было
   }else{
@@ -2557,6 +2770,7 @@ function enterWithProfile(profile){
   $('authScreen').style.display='none';
   $('loginScreen').style.display='flex';
   renderSavedRooms();
+  renderSavedVideoRooms();
   $('roomInput').focus();
 }
 
@@ -2591,6 +2805,68 @@ function checkAuth(){
     switchAuthTab('reg');
     buildAvatarRow();updatePreview();
   }
+}
+
+// Восстанавливает сессию из Firebase после переустановки/очистки кэша.
+// Вызывается один раз при старте из window.onload.
+// Если Firebase говорит что пользователь авторизован — тихо грузим профиль из Firestore
+// и пропускаем экран входа. Если нет — обычный checkAuth().
+function initAuthState(){
+  // Показываем экраны скрытыми пока Firebase не ответил
+  $('authScreen').style.display='none';
+  $('loginScreen').style.display='none';
+
+  fbAuth.onAuthStateChanged(async(user)=>{
+    if(!user){
+      // Нет активной сессии — стандартный поток
+      checkAuth();
+      return;
+    }
+
+    // Есть активная Firebase-сессия
+    const uid=user.uid;
+
+    // Пробуем взять профиль из localStorage (быстро, без сети)
+    const raw=localStorage.getItem('svoychat_profile');
+    if(raw){
+      try{
+        const cached=JSON.parse(raw);
+        // uid совпадает — кэш актуален, используем его
+        if(cached.uid===uid){
+          enterWithProfile(cached);
+          return;
+        }
+      }catch(e){}
+    }
+
+    // localStorage пуст или uid не совпадает (переустановка / смена устройства)
+    // Грузим профиль из Firestore
+    try{
+      const doc=await fbDb.collection('users').doc(uid).get();
+      if(doc.exists){
+        const profile=doc.data();
+        if(profile.banned){
+          // Заблокированный — выходим и показываем форму
+          await fbAuth.signOut();
+          localStorage.removeItem('svoychat_profile');
+          localStorage.removeItem('svoychat_uid');
+          showToast('Аккаунт заблокирован');
+          checkAuth();
+          return;
+        }
+        // Восстанавливаем кэш и входим без лишних экранов
+        localStorage.setItem('svoychat_uid', uid);
+        localStorage.setItem('svoychat_profile', JSON.stringify(profile));
+        enterWithProfile(profile);
+      } else {
+        // Профиль в Firestore не найден — показываем форму входа
+        checkAuth();
+      }
+    }catch(e){
+      // Нет сети или другая ошибка — показываем форму входа
+      checkAuth();
+    }
+  });
 }
 
 // ===== ACTIONS =====
@@ -2634,6 +2910,7 @@ function leaveChat(){
   $('typingBar').innerHTML='';isTyping=false;clearTimeout(typingTimeout);
   $('statusDot').className='';$('passInput').value='';
   renderSavedRooms();
+  renderSavedVideoRooms();
 }
 
 let pendingOutboxMsg=null;
@@ -2871,8 +3148,9 @@ function closeViewProfile(){
 window.onload=()=>{
   $('loginScreen').style.display='none';
   $('authScreen').style.display='none';
-  checkAuth();
+  initAuthState(); // проверяем Firebase сессию (восстанавливает аккаунт после переустановки)
   renderSavedRooms();
+  renderSavedVideoRooms();
   updateActionBtn();
   initThemeGrid();
   document.addEventListener('click',e=>{
@@ -3018,6 +3296,339 @@ async function openYuKassa(){
   }finally{
     if(btn){ btn.disabled=false; btn.textContent='💳 Оплатить картой — 99 ₽'; }
   }
+}
+
+// ===== ВИДЕО-КОМНАТЫ =====
+let vroPlatform = 'yt'; // текущая выбранная платформа в форме
+let vroCurrentRoom = ''; // название текущей видео-комнаты
+let vroMqttClient = null; // отдельный MQTT клиент для видео-комнаты
+let vroRoomHash = ''; // хэш видео-комнаты
+let vroCryptoKey = null; // ключ шифрования видео-комнаты
+let vroMyId = ''; // ID в видео-комнате
+
+function selectVrPlatform(p){
+  vroPlatform = p;
+  // Табы в оверлее
+  ['YT','VK','RT'].forEach(pl=>{
+    const tab = $('vroTab'+pl);
+    if(tab) tab.classList.toggle('active', pl.toLowerCase()===p);
+  });
+  const placeholders = {yt:'https://youtube.com/watch?v=...', vk:'https://vk.com/video...', rt:'https://rutube.ru/video/...'};
+  const inp = $('vroUrlInput');
+  if(inp) inp.placeholder = placeholders[p] || 'Вставь ссылку...';
+}
+
+function detectPlatform(url){
+  if(!url) return null;
+  if(/youtube\.com|youtu\.be/i.test(url)) return 'yt';
+  if(/vk\.com|vkvideo\.ru/i.test(url)) return 'vk';
+  if(/rutube\.ru/i.test(url)) return 'rt';
+  return null;
+}
+
+function getVideoEmbedUrl(url, platform){
+  if(!url) return null;
+  try{
+    if(platform==='yt'){
+      const m=url.match(/(?:youtu\.be\/|youtube\.com\/(?:watch\?v=|shorts\/|embed\/))([A-Za-z0-9_\-]{11})/);
+      if(m) return 'https://www.youtube.com/embed/'+m[1]+'?autoplay=0&rel=0';
+      return null;
+    }
+    if(platform==='vk'){
+      // Форматы: vk.com/video-12345_67890 или vk.com/video?z=video-12345_67890
+      const m1=url.match(/video(-?\d+)_(\d+)/);
+      if(m1) return `https://vk.com/video_ext.php?oid=${m1[1]}&id=${m1[2]}&hd=2`;
+      return null;
+    }
+    if(platform==='rt'){
+      // rutube.ru/video/HASH/
+      const m=url.match(/rutube\.ru\/video\/([a-zA-Z0-9]+)/);
+      if(m) return 'https://rutube.ru/play/embed/'+m[1];
+      return null;
+    }
+  }catch(e){}
+  return null;
+}
+
+function getPlatformLabel(p){
+  return {yt:'YouTube', vk:'ВК Видео', rt:'Rutube'}[p] || p;
+}
+
+function setPlatformBadge(p){
+  const badge = $('vroPlatformBadge');
+  if(!badge) return;
+  const logos = {
+    yt: '<svg width="16" height="11" viewBox="0 0 16 11" fill="none"><rect width="16" height="11" rx="2.5" fill="#FF0000"/><polygon points="6.5,2.5 6.5,8.5 11.5,5.5" fill="white"/></svg> YouTube',
+    vk: '<svg width="16" height="16" viewBox="0 0 16 16" fill="none"><rect width="16" height="16" rx="4" fill="#2787F5"/><rect x="2" y="2" width="12" height="12" rx="3" fill="#FF3347"/><polygon points="6,5 6,11 11.5,8" fill="white"/></svg> ВК Видео',
+    rt: '<svg width="16" height="16" viewBox="0 0 16 16" fill="none"><rect width="16" height="16" rx="3.5" fill="#1A1F3C"/><path d="M11 2.5 Q14.5 2.5 14.5 6 Q14.5 9.5 11 9.5" fill="#E8103C"/><rect x="1" y="1" width="11" height="14" rx="3" fill="#1A1F3C"/><text x="2" y="11.5" font-size="9" font-weight="bold" font-family="Arial,sans-serif" fill="white">R</text></svg> Rutube'
+  };
+  badge.innerHTML = logos[p] || getPlatformLabel(p);
+  badge.className = 'vro-platform-badge ' + (p||'yt');
+}
+
+function renderVroPlayer(url, platform){
+  const player = $('vroPlayer');
+  const placeholder = $('vroPlaceholder');
+  // Удаляем старый iframe если был
+  const old = player.querySelector('iframe');
+  if(old) old.remove();
+  if(placeholder) placeholder.style.display = 'none';
+
+  if(!url){
+    if(placeholder) placeholder.style.display = 'flex';
+    return;
+  }
+  const embedUrl = getVideoEmbedUrl(url, platform);
+  if(!embedUrl){
+    if(placeholder){
+      placeholder.style.display='flex';
+      placeholder.querySelector('div:last-child').textContent='Не удалось распознать ссылку. Проверь формат.';
+    }
+    return;
+  }
+  const iframe = document.createElement('iframe');
+  iframe.src = embedUrl;
+  iframe.allow = 'autoplay; fullscreen; encrypted-media; gyroscope; picture-in-picture';
+  iframe.allowFullscreen = true;
+  iframe.style.cssText = 'width:100%;height:100%;border:none;display:block;';
+  player.appendChild(iframe);
+  setPlatformBadge(platform);
+}
+
+function appendVroMsg(name, color, text, sys=false){
+  const msgs = $('vroChatMsgs');
+  const div = document.createElement('div');
+  if(sys){
+    div.className = 'vro-msg vro-msg-sys';
+    div.textContent = text;
+  } else {
+    div.className = 'vro-msg';
+    const nameSpan = document.createElement('span');
+    nameSpan.className = 'vro-msg-name';
+    nameSpan.style.color = color||'var(--accent)';
+    nameSpan.textContent = name+':';
+    const textSpan = document.createElement('span');
+    textSpan.textContent = ' '+text;
+    div.appendChild(nameSpan);
+    div.appendChild(textSpan);
+  }
+  msgs.appendChild(div);
+  msgs.scrollTop = msgs.scrollHeight;
+}
+
+async function joinVideoRoom(){
+  const roomName = $('vrNameInput').value.trim().replace(/\s+/g,'_');
+  const pass = $('vrPassInput').value;
+  if(!roomName){showToast('Введи название видео-комнаты');$('vrNameInput').focus();return;}
+  if(!pass){showToast('Введи пароль комнаты');$('vrPassInput').focus();return;}
+  if(!myName){showToast('Сначала войди в аккаунт');return;}
+
+  vroCurrentRoom = roomName;
+  vroRoomHash = (await sha256hex('vr:'+roomName+':'+pass)).slice(0,32);
+  vroCryptoKey = await deriveKey(pass, 'vr:'+roomName);
+  vroMyId = generateId();
+
+  // Ищем сохранённую комнату с последним видео
+  let savedUrl = '', savedPlatform = 'yt';
+  try{
+    const rooms = JSON.parse(localStorage.getItem('svoychat_video_rooms')||'[]');
+    const found = rooms.find(r=>r.name===roomName);
+    if(found){ savedUrl=found.url||''; savedPlatform=found.platform||'yt'; }
+  }catch(e){}
+
+  // Сохраняем комнату (без видео при создании)
+  saveVideoRoom(roomName, savedUrl, savedPlatform);
+
+  // Открываем оверлей
+  $('loginScreen').style.display='none';
+  $('videoRoomOverlay').classList.add('show');
+  $('vroTitle').textContent = roomName;
+  setPlatformBadge(savedPlatform);
+  $('vroChatMsgs').innerHTML = '';
+  $('vroUrlInput').value = savedUrl;
+
+  // Рендерим плеер если есть сохранённая ссылка
+  if(savedUrl) renderVroPlayer(savedUrl, savedPlatform);
+  else {
+    const player = $('vroPlayer');
+    const old = player.querySelector('iframe');
+    if(old) old.remove();
+    const ph = $('vroPlaceholder');
+    if(ph){ ph.style.display='flex'; const last=ph.querySelectorAll('div'); if(last[1]) last[1].textContent='Нажми «🔗 Видео» и вставь ссылку.'; }
+  }
+
+  // Подключаемся к MQTT для чата видео-комнаты
+  connectVroMqtt();
+}
+
+function connectVroMqtt(){
+  if(vroMqttClient){try{vroMqttClient.disconnect();}catch(e){}}
+  const cid='vroChat_'+vroMyId+'_'+Date.now().toString(36);
+  // Используем тот же брокер что и основной чат
+  vroMqttClient = new Paho.Client(BROKER_URL, cid);
+  vroMqttClient.onConnectionLost=()=>{
+    if(!appInBackground){
+      appendVroMsg('','','⚠ Соединение потеряно', true);
+    }
+    setTimeout(connectVroMqtt, 3000);
+  };
+  vroMqttClient.onMessageArrived=async msg=>{
+    try{
+      const dec = await vroDecrypt(msg.payloadString);
+      if(!dec)return;
+      const data = JSON.parse(dec);
+      if(data.id===vroMyId)return;
+      if(data.type==='vro_msg'){
+        appendVroMsg(data.name, data.color, data.text);
+      } else if(data.type==='vro_video'){
+        // Кто-то сменил видео — обновляем плеер
+        appendVroMsg('','',`📺 ${data.name} поставил новое видео`, true);
+        renderVroPlayer(data.url, data.platform);
+        $('vroUrlInput').value = data.url||'';
+        setPlatformBadge(data.platform);
+      } else if(data.type==='vro_join'){
+        appendVroMsg('','',`→ ${data.name} зашёл в видео-комнату`, true);
+      } else if(data.type==='vro_leave'){
+        appendVroMsg('','',`← ${data.name} вышел`, true);
+      }
+    }catch(e){}
+  };
+  vroMqttClient.connect({
+    useSSL:true,
+    keepAliveInterval:30,
+    cleanSession:false,
+    onSuccess:()=>{
+      vroMqttClient.subscribe('svojchat/vro/'+vroRoomHash+'/chat');
+      if(!appInBackground){
+        vroPublish({type:'vro_join', id:vroMyId, name:myName, color:myColor});
+        appendVroMsg('','','✓ Подключено к видео-комнате: '+vroCurrentRoom, true);
+      } else {
+        // Тихое переподключение в фоне — не спамим в чат
+        vroMqttClient.subscribe('svojchat/vro/'+vroRoomHash+'/chat');
+      }
+    },
+    onFailure:()=>{
+      if(!appInBackground){
+        appendVroMsg('','','⚠ Ошибка подключения, повтор...', true);
+      }
+      setTimeout(connectVroMqtt, 3000);
+    }
+  });
+}
+
+async function vroEncrypt(obj){
+  const text = JSON.stringify(obj);
+  const iv = crypto.getRandomValues(new Uint8Array(12));
+  const enc = await crypto.subtle.encrypt({name:'AES-GCM',iv}, vroCryptoKey, new TextEncoder().encode(text));
+  const c = new Uint8Array(12+enc.byteLength); c.set(iv,0); c.set(new Uint8Array(enc),12);
+  return btoa(String.fromCharCode(...c));
+}
+
+async function vroDecrypt(b64){
+  try{
+    const c = Uint8Array.from(atob(b64),x=>x.charCodeAt(0));
+    const dec = await crypto.subtle.decrypt({name:'AES-GCM',iv:c.slice(0,12)}, vroCryptoKey, c.slice(12));
+    return new TextDecoder().decode(dec);
+  }catch{return null;}
+}
+
+async function vroPublish(obj){
+  if(!vroMqttClient||!vroMqttClient.isConnected())return;
+  try{
+    const enc = await vroEncrypt(obj);
+    const msg = new Paho.Message(enc);
+    msg.destinationName = 'svojchat/vro/'+vroRoomHash+'/chat';
+    msg.qos = 0;
+    vroMqttClient.send(msg);
+  }catch(e){}
+}
+
+async function sendVroChatMsg(){
+  const input = $('vroChatInput');
+  const text = input.value.trim();
+  if(!text)return;
+  appendVroMsg(myName, myColor, text);
+  await vroPublish({type:'vro_msg', id:vroMyId, name:myName, color:myColor, text});
+  input.value='';input.focus();
+}
+
+function openVroUrlBar(){
+  const bar = $('vroUrlBar');
+  bar.style.display = bar.style.display==='none'?'flex':'none';
+  if(bar.style.display==='flex') $('vroUrlInput').focus();
+}
+
+async function applyVroUrl(){
+  const url = $('vroUrlInput').value.trim();
+  const platform = detectPlatform(url) || vroPlatform;
+  renderVroPlayer(url, platform);
+  $('vroUrlBar').style.display='none';
+  // Сообщаем всем в комнате
+  await vroPublish({type:'vro_video', id:vroMyId, name:myName, url, platform});
+  if(url) appendVroMsg('','','📺 Ты поставил новое видео', true);
+  // Обновляем сохранённую комнату
+  saveVideoRoom(vroCurrentRoom, url, platform);
+}
+
+function leaveVideoRoom(){
+  vroPublish({type:'vro_leave', id:vroMyId, name:myName});
+  try{if(vroMqttClient)vroMqttClient.disconnect();}catch(e){}
+  vroMqttClient=null; vroCurrentRoom=''; vroRoomHash=''; vroCryptoKey=null;
+  $('videoRoomOverlay').classList.remove('show');
+  $('loginScreen').style.display='flex';
+  renderSavedVideoRooms();
+}
+
+// ===== СОХРАНЁННЫЕ ВИДЕО-КОМНАТЫ =====
+function saveVideoRoom(name, url, platform){
+  let rooms = [];
+  try{rooms=JSON.parse(localStorage.getItem('svoychat_video_rooms')||'[]');}catch(e){}
+  rooms=rooms.filter(r=>r.name!==name);
+  rooms.unshift({name, url:url||'', platform:platform||'yt'});
+  if(rooms.length>5) rooms=rooms.slice(0,5);
+  localStorage.setItem('svoychat_video_rooms', JSON.stringify(rooms));
+}
+
+function renderSavedVideoRooms(){
+  let rooms=[];
+  try{rooms=JSON.parse(localStorage.getItem('svoychat_video_rooms')||'[]');}catch(e){}
+  const section=$('savedVideoRoomsSection');
+  const list=$('savedVideoRoomsList');
+  if(!section||!list)return;
+  if(!rooms.length){section.style.display='none';return;}
+  section.style.display='flex';
+  list.innerHTML='';
+  rooms.forEach(r=>{
+    const btn=document.createElement('div');
+    btn.className='saved-video-room-btn';
+  const platformIcons={
+    yt:'<svg width="16" height="11" viewBox="0 0 16 11" fill="none"><rect width="16" height="11" rx="2.5" fill="#FF0000"/><polygon points="6.5,2.5 6.5,8.5 11.5,5.5" fill="white"/></svg>',
+    vk:'<svg width="16" height="16" viewBox="0 0 16 16" fill="none"><rect width="16" height="16" rx="4" fill="#2787F5"/><rect x="2" y="2" width="12" height="12" rx="3" fill="#FF3347"/><polygon points="6,5 6,11 11.5,8" fill="white"/></svg>',
+    rt:'<svg width="16" height="16" viewBox="0 0 16 16" fill="none"><rect width="16" height="16" rx="3.5" fill="#1A1F3C"/><path d="M11 2.5 Q14.5 2.5 14.5 6 Q14.5 9.5 11 9.5" fill="#E8103C"/><rect x="1" y="1" width="11" height="14" rx="3" fill="#1A1F3C"/><text x="2" y="11.5" font-size="9" font-weight="bold" font-family="Arial,sans-serif" fill="white">R</text></svg>'
+  };
+    btn.innerHTML=`
+      <span class="saved-vr-platform">${platformIcons[r.platform]||'🎬'}</span>
+      <span class="saved-vr-info">
+        <div class="saved-vr-name">${r.name.replace(/_/g,' ')}</div>
+        <div class="saved-vr-url">${r.url||'нет видео'}</div>
+      </span>
+      <button class="saved-vr-del" title="Удалить">✕</button>`;
+    btn.querySelector('.saved-vr-del').onclick=e=>{
+      e.stopPropagation();
+      let rms=[];try{rms=JSON.parse(localStorage.getItem('svoychat_video_rooms')||'[]');}catch(e2){}
+      rms=rms.filter(x=>x.name!==r.name);
+      localStorage.setItem('svoychat_video_rooms',JSON.stringify(rms));
+      renderSavedVideoRooms();
+    };
+    btn.onclick=e=>{
+      if(e.target.classList.contains('saved-vr-del'))return;
+      $('vrNameInput').value=r.name.replace(/_/g,' ');
+      $('vrUrlInput').value=r.url||'';
+      selectVrPlatform(r.platform||'yt');
+      $('vrPassInput').focus();
+    };
+    list.appendChild(btn);
+  });
 }
 
 async function uploadCustomAvatar(event){
