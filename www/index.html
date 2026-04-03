@@ -2668,10 +2668,8 @@ firebase.initializeApp(firebaseConfig);
 const fbAuth = firebase.auth();
 const fbDb = firebase.firestore();
 
-// Настройка для Capacitor (APK) и file:// режима
-if (window.Capacitor || window.location.protocol === 'file:') {
-  fbAuth.setPersistence(firebase.auth.Auth.Persistence.LOCAL).catch(()=>{});
-}
+// Настройка persistence
+fbAuth.setPersistence(firebase.auth.Auth.Persistence.LOCAL).catch(()=>{});
 
 // ===== AUTH =====
 const AVATARS=['😎','🐱','🦊','🐼','🦁','🐸','🤖','👾','🧙','🦄','🐺','🐧'];
