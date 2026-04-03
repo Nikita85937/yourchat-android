@@ -2668,6 +2668,11 @@ firebase.initializeApp(firebaseConfig);
 const fbAuth = firebase.auth();
 const fbDb = firebase.firestore();
 
+// Настройка для Capacitor (APK) и file:// режима
+if (window.Capacitor || window.location.protocol === 'file:') {
+  fbAuth.setPersistence(firebase.auth.Auth.Persistence.LOCAL).catch(()=>{});
+}
+
 // ===== AUTH =====
 const AVATARS=['😎','🐱','🦊','🐼','🦁','🐸','🤖','👾','🧙','🦄','🐺','🐧'];
 const ACOLORS=['#4f8ef7','#7c5ef7','#f7a65a','#3dd68c','#f7645a','#f7d65a','#5af7e8','#f75ab8'];
@@ -2752,7 +2757,7 @@ async function doLogin(){
     enterWithProfile(profile);
   }catch(e){
     const msgs={'auth/user-not-found':'Аккаунт не найден','auth/wrong-password':'Неверный пароль','auth/invalid-email':'Неверный email','auth/invalid-credential':'Неверный email или пароль'};
-   showToast(msgs[e.code]||e.code||'Ошибка входа');
+    showToast(msgs[e.code]||e.code||'Ошибка входа');
   }finally{btn.disabled=false;btn.textContent='Войти →';}
 }
 
