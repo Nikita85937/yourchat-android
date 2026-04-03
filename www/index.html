@@ -2752,7 +2752,7 @@ async function doLogin(){
     enterWithProfile(profile);
   }catch(e){
     const msgs={'auth/user-not-found':'Аккаунт не найден','auth/wrong-password':'Неверный пароль','auth/invalid-email':'Неверный email','auth/invalid-credential':'Неверный email или пароль'};
-    showToast(msgs[e.code]||'Ошибка входа');
+   showToast(msgs[e.code]||e.code||'Ошибка входа');
   }finally{btn.disabled=false;btn.textContent='Войти →';}
 }
 
