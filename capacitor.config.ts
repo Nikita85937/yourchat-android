@@ -5,7 +5,8 @@ const config: CapacitorConfig = {
   appName: 'Свой чат',
   webDir: 'www',
   server: {
-    androidScheme: 'https'
+    url: 'https://your-chat990.netlify.app',
+    cleartext: false
   }
 };
 
