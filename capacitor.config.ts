@@ -3,7 +3,9 @@ import type { CapacitorConfig } from '@capacitor/cli';
 const config: CapacitorConfig = {
   appId: 'com.svoychat.app',
   appName: 'Свой чат',
-  webDir: 'www'
+  webDir: 'www',
+  server: {
+    hostname: 'chats-f2c9f.firebaseapp.com',
+    androidScheme: 'https'
+  }
 };
-
-export default config;
