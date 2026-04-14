@@ -2755,7 +2755,7 @@ async function onMessage(rawMsg){
 // ===== FIREBASE CONFIG =====
 const firebaseConfig = {
   apiKey: "AIzaSyBY_TuXU4S8Tm2IkOlYZ_n2Ac_QnVgT6vM",
-  authDomain: "your-chat990.netlify.app",
+  authDomain: "chats-f2c9f.firebaseapp.com",
   projectId: "chats-f2c9f",
   storageBucket: "chats-f2c9f.firebasestorage.app",
   messagingSenderId: "51476203392",
@@ -2765,7 +2765,7 @@ firebase.initializeApp(firebaseConfig);
 const fbAuth = firebase.auth();
 const fbDb = firebase.firestore();
 
-// Настройка persistence
+// Используем LOCAL persistence — сессия сохраняется в localStorage (работает в Capacitor без Netlify)
 fbAuth.setPersistence(firebase.auth.Auth.Persistence.LOCAL).catch(()=>{});
 
 // ===== AUTH =====
@@ -2839,21 +2839,8 @@ async function doLogin(){
   const btn=$('loginCard').querySelector('.btn');
   btn.disabled=true;btn.textContent='Входим...';
   try{
-    // Firebase REST API — работает в Capacitor без проблем с доменами
-    const res=await fetch(`https://identitytoolkit.googleapis.com/v1/accounts:signInWithPassword?key=AIzaSyBY_TuXU4S8Tm2IkOlYZ_n2Ac_QnVgT6vM`,{
-      method:'POST',
-      headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({email,password:pass,returnSecureToken:true})
-    });
-    const data=await res.json();
-    if(data.error){
-      // Показываем точную ошибку от Firebase для диагностики
-      const msgs={'EMAIL_NOT_FOUND':'Аккаунт не найден','INVALID_PASSWORD':'Неверный пароль','USER_DISABLED':'Аккаунт заблокирован','INVALID_LOGIN_CREDENTIALS':'Неверный пароль','TOO_MANY_ATTEMPTS_TRY_LATER':'Слишком много попыток, подожди немного'};
-      showToast(msgs[data.error.message]||'Ошибка: '+data.error.message, 5000);
-      btn.disabled=false;btn.textContent='Войти →';
-      return;
-    }
-    const uid=data.localId;
+    const cred=await fbAuth.signInWithEmailAndPassword(email,pass);
+    const uid=cred.user.uid;
     // Загружаем профиль из Firestore
     const doc=await fbDb.collection('users').doc(uid).get();
     if(!doc.exists){showToast('Профиль не найден');btn.disabled=false;btn.textContent='Войти →';return;}
@@ -2864,7 +2851,8 @@ async function doLogin(){
     localStorage.setItem('svoychat_profile',JSON.stringify(profile));
     enterWithProfile(profile);
   }catch(e){
-    showToast('Ошибка сети: '+e.message, 5000);
+    const msgs={'auth/user-not-found':'Аккаунт не найден','auth/wrong-password':'Неверный пароль','auth/invalid-credential':'Неверный пароль','auth/user-disabled':'Аккаунт заблокирован','auth/too-many-requests':'Слишком много попыток, подожди немного','auth/invalid-email':'Неверный формат email'};
+    showToast(msgs[e.code]||'Ошибка: '+e.message, 5000);
   }finally{btn.disabled=false;btn.textContent='Войти →';}
 }
 
@@ -2895,6 +2883,7 @@ async function doLogout(){
   try{await fbAuth.signOut();}catch(e){}
   localStorage.removeItem('svoychat_profile');
   localStorage.removeItem('svoychat_uid');
+  myName='';myColor='';myAvatar='';myUid='';
   switchAuthTab('reg');
   buildAvatarRow();updatePreview();
 }
@@ -2919,66 +2908,37 @@ function checkAuth(){
   }
 }
 
-// Восстанавливает сессию из Firebase после переустановки/очистки кэша.
-// Вызывается один раз при старте из window.onload.
-// Если Firebase говорит что пользователь авторизован — тихо грузим профиль из Firestore
-// и пропускаем экран входа. Если нет — обычный checkAuth().
+// Инициализация авторизации — автовход если Firebase-сессия есть
 function initAuthState(){
-  // Показываем экраны скрытыми пока Firebase не ответил
   $('authScreen').style.display='none';
   $('loginScreen').style.display='none';
 
-  fbAuth.onAuthStateChanged(async(user)=>{
-    if(!user){
-      // Нет активной сессии — стандартный поток
-      checkAuth();
-      return;
-    }
-
-    // Есть активная Firebase-сессия
-    const uid=user.uid;
-
-    // Пробуем взять профиль из localStorage (быстро, без сети)
-    const raw=localStorage.getItem('svoychat_profile');
-    if(raw){
+  // Пытаемся войти автоматически если есть активная Firebase-сессия
+  fbAuth.onAuthStateChanged(async user=>{
+    if(user && $('loginScreen').style.display==='none' && $('chatScreen').style.display==='none'){
+      // Есть активная сессия — пробуем загрузить профиль
       try{
-        const cached=JSON.parse(raw);
-        // uid совпадает — кэш актуален, используем его
-        if(cached.uid===uid){
-          enterWithProfile(cached);
-          return;
+        const uid=user.uid;
+        const doc=await fbDb.collection('users').doc(uid).get();
+        if(doc.exists){
+          const profile=doc.data();
+          if(!profile.banned){
+            localStorage.setItem('svoychat_uid',uid);
+            localStorage.setItem('svoychat_profile',JSON.stringify(profile));
+            enterWithProfile(profile);
+            return;
+          }
         }
       }catch(e){}
-    }
-
-    // localStorage пуст или uid не совпадает (переустановка / смена устройства)
-    // Грузим профиль из Firestore
-    try{
-      const doc=await fbDb.collection('users').doc(uid).get();
-      if(doc.exists){
-        const profile=doc.data();
-        if(profile.banned){
-          // Заблокированный — выходим и показываем форму
-          await fbAuth.signOut();
-          localStorage.removeItem('svoychat_profile');
-          localStorage.removeItem('svoychat_uid');
-          showToast('Аккаунт заблокирован');
-          checkAuth();
-          return;
-        }
-        // Восстанавливаем кэш и входим без лишних экранов
-        localStorage.setItem('svoychat_uid', uid);
-        localStorage.setItem('svoychat_profile', JSON.stringify(profile));
-        enterWithProfile(profile);
-      } else {
-        // Профиль в Firestore не найден — показываем форму входа
-        checkAuth();
-      }
-    }catch(e){
-      // Нет сети или другая ошибка — показываем форму входа
+      // Если не удалось — показываем форму
+      checkAuth();
+    } else if(!user && $('loginScreen').style.display==='none' && $('chatScreen').style.display==='none'){
       checkAuth();
     }
   });
+
+  // Показываем форму сразу, пока Firebase проверяет сессию
+  checkAuth();
 }
 
 // ===== ACTIONS =====
