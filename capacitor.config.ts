@@ -5,6 +5,7 @@ const config: CapacitorConfig = {
   appName: 'Свой чат',
   webDir: 'www',
   server: {
-    androidScheme: 'https'
+    androidScheme: 'https',
+    hostname: 'svoychat.app'
   }
 };
