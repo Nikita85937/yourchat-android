@@ -2131,15 +2131,21 @@ async function startCall(withVideo=false){
 }
 
 async function createOfferFor(targetUid, withVideo){
-  const pc = createPeerConn(targetUid);
-  const offer=await pc.createOffer({offerToReceiveAudio:true,offerToReceiveVideo:!!withVideo});
-  const patched={...offer,sdp:patchSdpForLowLatency(offer.sdp)};
-  await pc.setLocalDescription(patched);
-  applyCallEncryption(pc, callMediaKey);
-  publishRaw('signal',await encrypt(JSON.stringify({
-    type:'offer',id:myId,targetUid,name:myName,color:myColor,
-    offer:pc.localDescription,withVideo:!!withVideo
-  })));
+  try{
+    const pc = createPeerConn(targetUid);
+    const offer=await pc.createOffer({offerToReceiveAudio:true,offerToReceiveVideo:!!withVideo});
+    const patched={...offer,sdp:patchSdpForLowLatency(offer.sdp)};
+    await pc.setLocalDescription(patched);
+    applyCallEncryption(pc, callMediaKey);
+    publishRaw('signal',await encrypt(JSON.stringify({
+      type:'offer',id:myId,targetUid,name:myName,color:myColor,
+      offer:pc.localDescription,withVideo:!!withVideo
+    })));
+  }catch(err){
+    console.warn('createOfferFor error:',err);
+    showToast('Не удалось создать звонок');
+    if(inCall)endCall(true);
+  }
 }
 
 function createPeerConn(remoteUid){
@@ -2199,7 +2205,12 @@ function removePeerConn(uid){
   if(el)el.remove();
   updateCallParticipantsUI();
   if(Object.keys(peerConns).length===0 && inCall){
-    endCall(true);
+    // Задержка чтобы избежать гонки состояний при подключении нового участника
+    setTimeout(()=>{
+      if(Object.keys(peerConns).length===0 && inCall){
+        endCall(true);
+      }
+    }, 2000);
   }
 }
 
@@ -2287,6 +2298,7 @@ async function acceptCall(){
   stopAllRings();
   playCallConnectedSound();
   if(!pendingOffer||!pendingCallerId)return;
+  if(inCall){showToast('Ты уже в звонке');pendingOffer=null;pendingCallerId=null;return;}
   isVideoCall=pendingOffer.withVideo||false;
   if(!localStream){
     try{
@@ -2296,7 +2308,7 @@ async function acceptCall(){
       });
     }catch(e){
       try{localStream=await navigator.mediaDevices.getUserMedia({audio:true,video:isVideoCall});}
-      catch(e2){showToast('Нет доступа к микрофону/камере');return;}
+      catch(e2){showToast('Нет доступа к микрофону/камере');pendingOffer=null;pendingCallerId=null;return;}
     }
     if(isVideoCall){$('localVideo').srcObject=localStream;$('localVideo').style.display='block';}
   }
@@ -2308,21 +2320,27 @@ async function acceptCall(){
   callParticipantNames[pendingCallerId]=pendingCallerName;
   updateCallParticipantsUI();
 
-  const pc=createPeerConn(pendingCallerId);
-  await pc.setRemoteDescription(new RTCSessionDescription(pendingOffer.offer));
-  // Flush pending ICE
-  if(pc._pendingIce){
-    for(const c of pc._pendingIce){try{await pc.addIceCandidate(new RTCIceCandidate(c));}catch(e){}}
-    pc._pendingIce=[];
+  try{
+    const pc=createPeerConn(pendingCallerId);
+    await pc.setRemoteDescription(new RTCSessionDescription(pendingOffer.offer));
+    // Flush pending ICE
+    if(pc._pendingIce){
+      for(const c of pc._pendingIce){try{await pc.addIceCandidate(new RTCIceCandidate(c));}catch(e){}}
+      pc._pendingIce=[];
+    }
+    const answer=await pc.createAnswer();
+    const patched={...answer,sdp:patchSdpForLowLatency(answer.sdp)};
+    await pc.setLocalDescription(patched);
+    applyCallEncryption(pc, callMediaKey);
+    publishRaw('signal',await encrypt(JSON.stringify({
+      type:'answer',id:myId,targetUid:pendingCallerId,name:myName,answer:pc.localDescription
+    })));
+  }catch(err){
+    showToast('Ошибка при подключении к звонку');
+    endCall(true);
+    pendingOffer=null;pendingCallerId=null;
+    return;
   }
-  const answer=await pc.createAnswer();
-  const patched={...answer,sdp:patchSdpForLowLatency(answer.sdp)};
-  await pc.setLocalDescription(patched);
-  applyCallEncryption(pc, callMediaKey);
-  publishRaw('signal',await encrypt(JSON.stringify({
-    type:'answer',id:myId,targetUid:pendingCallerId,name:myName,answer:pc.localDescription
-  })));
-
   showCallOverlay(pendingCallerName,isVideoCall?'📹 Видеозвонок':'📞 Голосовой звонок','connected');
   appendSys(`📞 Ты принял звонок от ${pendingCallerName}`);
   pendingOffer=null;pendingCallerId=null;
@@ -2337,7 +2355,7 @@ async function declineCall(){
   pendingOffer=null;pendingCallerId=null;
 }
 
-function endCall(fromRemote=false){
+async function endCall(fromRemote=false){
   if(callEnding)return;
   callEnding=true;
   stopAllRings();
@@ -2385,7 +2403,7 @@ function endCall(fromRemote=false){
   stopCallEncryption();
   const e2eBadge=$('callE2e');if(e2eBadge)e2eBadge.style.opacity='0';
   if(!fromRemote){
-    publishRaw('signal',encrypt(JSON.stringify({type:'hangup',id:myId,name:myName})));
+    publishRaw('signal',await encrypt(JSON.stringify({type:'hangup',id:myId,name:myName})));
   }
   setTimeout(()=>{callEnding=false;},1500);
 }
