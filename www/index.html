@@ -1994,6 +1994,105 @@ const ICE_SERVERS={
   iceTransportPolicy:'all'
 };
 
+// ===== ГУДКИ И РИНГТОНЫ =====
+let ringAudioCtx = null;
+let ringNodes = [];
+let ringInterval = null;
+
+function stopAllRings(){
+  if(ringInterval){clearInterval(ringInterval);ringInterval=null;}
+  ringNodes.forEach(n=>{try{n.stop();}catch(e){}});
+  ringNodes=[];
+  if(ringAudioCtx){try{ringAudioCtx.close();}catch(e){}ringAudioCtx=null;}
+}
+
+// Исходящий гудок — как телефонный звонок (периодический бип)
+function startOutgoingRing(){
+  stopAllRings();
+  ringAudioCtx = new (window.AudioContext||window.webkitAudioContext)();
+  let playing = false;
+  function playBeep(){
+    if(playing||!ringAudioCtx)return;
+    playing=true;
+    // Гудок: 425 Гц, длительность 1с, пауза 4с (как в России)
+    const osc=ringAudioCtx.createOscillator();
+    const gain=ringAudioCtx.createGain();
+    osc.connect(gain);gain.connect(ringAudioCtx.destination);
+    osc.frequency.value=425;
+    osc.type='sine';
+    gain.gain.setValueAtTime(0,ringAudioCtx.currentTime);
+    gain.gain.linearRampToValueAtTime(0.3,ringAudioCtx.currentTime+0.05);
+    gain.gain.setValueAtTime(0.3,ringAudioCtx.currentTime+0.9);
+    gain.gain.linearRampToValueAtTime(0,ringAudioCtx.currentTime+1.0);
+    osc.start(ringAudioCtx.currentTime);
+    osc.stop(ringAudioCtx.currentTime+1.05);
+    ringNodes.push(osc);
+    setTimeout(()=>{playing=false;},1050);
+  }
+  playBeep();
+  ringInterval=setInterval(playBeep,5000); // каждые 5 сек
+}
+
+// Входящий рингтон — двойной звонок как в телефоне
+function startIncomingRing(){
+  stopAllRings();
+  ringAudioCtx = new (window.AudioContext||window.webkitAudioContext)();
+  function playDoubleRing(){
+    if(!ringAudioCtx)return;
+    [0, 0.4].forEach(offset=>{
+      const osc=ringAudioCtx.createOscillator();
+      const gain=ringAudioCtx.createGain();
+      osc.connect(gain);gain.connect(ringAudioCtx.destination);
+      osc.frequency.value=480;
+      osc.type='sine';
+      const t=ringAudioCtx.currentTime+offset;
+      gain.gain.setValueAtTime(0,t);
+      gain.gain.linearRampToValueAtTime(0.4,t+0.05);
+      gain.gain.setValueAtTime(0.4,t+0.3);
+      gain.gain.linearRampToValueAtTime(0,t+0.35);
+      osc.start(t);
+      osc.stop(t+0.4);
+      ringNodes.push(osc);
+    });
+  }
+  playDoubleRing();
+  ringInterval=setInterval(playDoubleRing,2000); // каждые 2 сек
+}
+
+// Короткий звук — звонок принят/сброшен
+function playCallConnectedSound(){
+  stopAllRings();
+  try{
+    const ctx=new (window.AudioContext||window.webkitAudioContext)();
+    const osc=ctx.createOscillator();
+    const gain=ctx.createGain();
+    osc.connect(gain);gain.connect(ctx.destination);
+    osc.frequency.value=880;osc.type='sine';
+    gain.gain.setValueAtTime(0.3,ctx.currentTime);
+    gain.gain.linearRampToValueAtTime(0,ctx.currentTime+0.2);
+    osc.start(ctx.currentTime);osc.stop(ctx.currentTime+0.25);
+    setTimeout(()=>{try{ctx.close();}catch(e){}},500);
+  }catch(e){}
+}
+
+function playCallEndSound(){
+  stopAllRings();
+  try{
+    const ctx=new (window.AudioContext||window.webkitAudioContext)();
+    [0,0.15,0.3].forEach((offset,i)=>{
+      const osc=ctx.createOscillator();
+      const gain=ctx.createGain();
+      osc.connect(gain);gain.connect(ctx.destination);
+      osc.frequency.value=480-i*80;osc.type='sine';
+      gain.gain.setValueAtTime(0.25,ctx.currentTime+offset);
+      gain.gain.linearRampToValueAtTime(0,ctx.currentTime+offset+0.12);
+      osc.start(ctx.currentTime+offset);
+      osc.stop(ctx.currentTime+offset+0.15);
+    });
+    setTimeout(()=>{try{ctx.close();}catch(e){}},800);
+  }catch(e){}
+}
+
 async function startCall(withVideo=false){
   if(Object.keys(members).length===0){showToast('Никого нет в комнате');return;}
   if(inCall){showToast('Звонок уже идёт');return;}
@@ -2027,6 +2126,7 @@ async function startCall(withVideo=false){
   }
 
   showCallOverlay(myName, withVideo?'📹 Видеозвонок...':'📞 Звоним...','calling');
+  startOutgoingRing();
   appendSys(`📞 Ты начал ${withVideo?'видео':'голосовой'} звонок`);
 }
 
@@ -2184,6 +2284,8 @@ function triggerAutoRedial(){} // заглушка для совместимос
 
 async function acceptCall(){
   $('incomingCallBanner').classList.remove('show');
+  stopAllRings();
+  playCallConnectedSound();
   if(!pendingOffer||!pendingCallerId)return;
   isVideoCall=pendingOffer.withVideo||false;
   if(!localStream){
@@ -2228,6 +2330,7 @@ async function acceptCall(){
 
 async function declineCall(){
   $('incomingCallBanner').classList.remove('show');
+  stopAllRings();
   if(pendingCallerId){
     publishRaw('signal',await encrypt(JSON.stringify({type:'decline',id:myId,name:myName,targetUid:pendingCallerId})));
   }
@@ -2237,6 +2340,8 @@ async function declineCall(){
 function endCall(fromRemote=false){
   if(callEnding)return;
   callEnding=true;
+  stopAllRings();
+  playCallEndSound();
   // Останавливаем Foreground Service
   if(window.Capacitor&&window.Capacitor.isNativePlatform()){
     try{Capacitor.Plugins.CallService.stopCallService();}catch(e){}
@@ -2553,12 +2658,15 @@ async function handleSignal(data){
     pendingOffer=data;pendingCallerId=fromUid;pendingCallerName=data.name||'Собеседник';
     $('incomingCallerName').textContent=`${pendingCallerName} — ${data.withVideo?'📹 видео':'📞 голос'}`;
     $('incomingCallBanner').classList.add('show');
+    startIncomingRing();
     showIncomingCallNotification(pendingCallerName);
-    setTimeout(()=>$('incomingCallBanner').classList.remove('show'),40000);
+    setTimeout(()=>{$('incomingCallBanner').classList.remove('show');stopAllRings();},40000);
 
   }else if(data.type==='answer'){
     const pc=peerConns[fromUid];
     if(!pc)return;
+    stopAllRings();
+    playCallConnectedSound();
     callParticipantNames[fromUid]=data.name||'Участник';
     await pc.setRemoteDescription(new RTCSessionDescription(data.answer));
     if(pc._pendingIce){
